@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ERP ANV</title>
+<meta name="description" content="ERP ANV — Inventario, Clientes y Ventas (100% local).">
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --muted:#7a7f8a; --accent:#4da3ff; --accent2:#66d19e;
@@ -11,24 +12,26 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;background:linear-gradient(180deg,#0b0d12,#10131b 25%,#0f1115);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",Arial;line-height:1.45}
+  body{margin:0;background:linear-gradient(180deg,#0b0d12,#10131b 25%,#0f1115);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",Arial}
   header{position:sticky;top:0;z-index:10;backdrop-filter:saturate(180%) blur(10px);background:rgba(15,17,21,.6);border-bottom:1px solid var(--border)}
   .wrap{max-width:1200px;margin:0 auto;padding:18px}
   h1{font-size:1.3rem;margin:0}
   .sub{color:var(--muted);font-size:.95rem}
-  .grid{display:grid;gap:14px}
   section.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
   section.panel h2{margin:.2rem 0 10px;font-size:1.05rem}
+  .grid{display:grid;gap:14px}
+  .menu-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .card{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:16px;padding:20px}
+  .inline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .rows{display:flex;gap:10px;flex-direction:column}
   label{display:block;font-size:.9rem;color:var(--muted);margin:10px 0 6px}
   input[type="text"],input[type="number"],input[type="date"],select,textarea{width:100%;background:#0f131a;color:var(--text);border:1px solid #212634;border-radius:10px;padding:10px 12px;outline:none}
+  textarea{resize:vertical}
   button{background:var(--accent);border:none;color:#081018;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
   button.secondary{background:#232a38;color:var(--text);border:1px solid var(--border)}
-  button.ghost{background:transparent;color:var(--text);border:1px dashed var(--border)}
   button.warn{background:var(--warn);color:#2a1a00}
   button.danger{background:var(--danger);color:#190306}
   button.sm{padding:6px 10px;border-radius:8px;font-size:.9rem}
-  .inline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .rows{display:flex;gap:10px;flex-direction:column}
   table{width:100%;border-collapse:separate;border-spacing:0;font-size:.92rem}
   thead th{position:sticky;top:0;background:#0f131a;z-index:1}
   th,td{padding:8px 10px;border-bottom:1px solid #1f2531;vertical-align:middle}
@@ -36,10 +39,8 @@
   .right{margin-left:auto;text-align:right}
   .muted{color:var(--muted)}
   .scroll{max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:10px}
-  .note{color:var(--muted);font-size:.9rem}
   .hidden{display:none}
-  .menu-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px}
+  .note{color:var(--muted);font-size:.9rem}
 </style>
 </head>
 <body>
@@ -50,14 +51,14 @@
       <div class="sub">Menú principal</div>
     </div>
     <div class="right inline">
-      <button class="secondary sm" id="btnGoHome" title="Inicio">Inicio</button>
+      <button class="secondary sm" id="btnHome">Inicio</button>
     </div>
   </div>
 </header>
 
 <main class="wrap">
-  <!-- ===== MENÚ ===== -->
-  <section class="panel" id="viewMenu">
+  <!-- MENÚ -->
+  <section class="panel" id="viewMenu" data-view>
     <h2>Seleccione módulo</h2>
     <div class="menu-grid">
       <div class="card">
@@ -78,53 +79,30 @@
     </div>
   </section>
 
-  <!-- ===== INVENTARIO ===== -->
-  <section class="panel hidden" id="viewInventario">
+  <!-- INVENTARIO -->
+  <section class="panel hidden" id="viewInventario" data-view>
     <div class="inline"><h2>Inventario</h2><button class="secondary sm right" data-home>Regresar al menú</button></div>
+
     <div class="grid" style="grid-template-columns:1.1fr 1fr 1fr;gap:14px">
-      <!-- Catálogo productos -->
       <div class="rows">
         <h3>Catálogo de Productos</h3>
         <div class="inline">
-          <div style="flex:1">
-            <label>Nombre</label>
-            <input id="pName" type="text" placeholder="Ej. Pet-Nat Rosado 2024"/>
-          </div>
-          <div style="width:160px">
-            <label>SKU</label>
-            <input id="pSKU" type="text" placeholder="AN-PN24"/>
-          </div>
+          <div style="flex:1"><label>Nombre</label><input id="pName" type="text" placeholder="Pet-Nat Rosado 2024"></div>
+          <div style="width:160px"><label>SKU</label><input id="pSKU" type="text" placeholder="AN-PN24"></div>
         </div>
         <div class="inline">
-          <div style="width:120px">
-            <label>Costo</label>
-            <input id="pCost" type="number" min="0" step="0.01" placeholder="0.00"/>
-          </div>
-          <div style="width:160px">
-            <label>Precio Distribuidor</label>
-            <input id="pPriceD" type="number" min="0" step="0.01" placeholder="0.00"/>
-          </div>
-          <div style="width:160px">
-            <label>Precio Centro Consumo</label>
-            <input id="pPriceCC" type="number" min="0" step="0.01" placeholder="0.00"/>
-          </div>
+          <div style="width:120px"><label>Costo</label><input id="pCost" type="number" min="0" step="0.01"></div>
+          <div style="width:160px"><label>Precio Distribuidor</label><input id="pPriceD" type="number" min="0" step="0.01"></div>
+          <div style="width:160px"><label>Precio Centro Consumo</label><input id="pPriceCC" type="number" min="0" step="0.01"></div>
         </div>
         <div class="inline">
-          <div style="width:160px">
-            <label>Precio Nuevo Dist.</label>
-            <input id="pPriceND" type="number" min="0" step="0.01" placeholder="0.00"/>
-          </div>
-          <div style="width:180px">
-            <label>Precio Nuevo C.Consumo</label>
-            <input id="pPriceNCC" type="number" min="0" step="0.01" placeholder="0.00"/>
-          </div>
-          <div class="right">
-            <label>&nbsp;</label>
-            <button id="addProduct">Agregar producto</button>
-          </div>
+          <div style="width:160px"><label>Precio Nuevo Dist.</label><input id="pPriceND" type="number" min="0" step="0.01"></div>
+          <div style="width:200px"><label>Precio Nuevo C.Consumo</label><input id="pPriceNCC" type="number" min="0" step="0.01"></div>
+          <div class="right"><label>&nbsp;</label><button id="addProduct">Agregar producto</button></div>
         </div>
+
         <div class="inline">
-          <input id="productSearch" type="text" placeholder="Buscar…" style="flex:1"/>
+          <input id="productSearch" type="text" placeholder="Buscar…" style="flex:1">
           <span class="muted" id="productCount">0 productos</span>
         </div>
         <div class="scroll">
@@ -135,7 +113,6 @@
         </div>
       </div>
 
-      <!-- Alta de stock -->
       <div class="rows">
         <h3>Alta de Stock (lotes)</h3>
         <label>Producto</label><select id="sProduct"></select>
@@ -144,14 +121,13 @@
           <div style="flex:1"><label>Etapa</label><select id="sStage"></select></div>
         </div>
         <div class="inline">
-          <div style="flex:1"><label>Cantidad</label><input id="sQty" type="number" min="1" step="1"/></div>
-          <div style="flex:1"><label>Lote</label><input id="sLot" type="text"/></div>
+          <div style="flex:1"><label>Cantidad</label><input id="sQty" type="number" min="1" step="1"></div>
+          <div style="flex:1"><label>Lote</label><input id="sLot" type="text"></div>
         </div>
-        <label>Notas</label><input id="sNotes" type="text" placeholder="Ingreso inicial / conteo físico"/>
+        <label>Notas</label><input id="sNotes" type="text" placeholder="Ingreso inicial / conteo físico">
         <div class="inline"><button id="addStock">Agregar stock</button><button class="secondary" id="recount">Recontar</button></div>
       </div>
 
-      <!-- Movimiento -->
       <div class="rows">
         <h3>Movimiento</h3>
         <label>Producto</label><select id="mProduct"></select>
@@ -161,9 +137,9 @@
         </div>
         <div class="inline">
           <div style="flex:1"><label>Cambiar etapa</label><select id="mStage"><option value="">— Mantener —</option></select></div>
-          <div style="flex:1"><label>Cantidad</label><input id="mQty" type="number" min="1" step="1"/></div>
+          <div style="flex:1"><label>Cantidad</label><input id="mQty" type="number" min="1" step="1"></div>
         </div>
-        <label>Notas</label><input id="mNotes" type="text"/>
+        <label>Notas</label><input id="mNotes" type="text">
         <div class="inline"><button id="doMove">Mover</button><span class="note">Queda en historial.</span></div>
       </div>
     </div>
@@ -173,7 +149,7 @@
       <div class="inline">
         <select id="fWarehouse"></select>
         <select id="fStage"></select>
-        <input id="fText" type="text" placeholder="Producto/SKU/Lote…" style="min-width:240px"/>
+        <input id="fText" type="text" placeholder="Producto/SKU/Lote…" style="min-width:240px">
         <button class="secondary sm" id="btnClearFilters">Limpiar</button>
       </div>
       <div class="scroll" style="max-height:360px">
@@ -184,7 +160,7 @@
       </div>
 
       <h3>Historial</h3>
-      <div class="inline"><input id="hFrom" type="date"/><input id="hTo" type="date"/><button class="secondary sm" id="btnClearDates">Limpiar rango</button></div>
+      <div class="inline"><input id="hFrom" type="date"><input id="hTo" type="date"><button class="secondary sm" id="btnClearDates">Limpiar rango</button></div>
       <div class="scroll" style="max-height:320px">
         <table id="histTable">
           <thead><tr><th>Fecha</th><th>Producto</th><th>Desde</th><th>Hacia</th><th>Etapa</th><th>Cantidad</th><th>Notas</th></tr></thead>
@@ -194,19 +170,19 @@
     </div>
   </section>
 
-  <!-- ===== CLIENTES ===== -->
-  <section class="panel hidden" id="viewClientes">
+  <!-- CLIENTES -->
+  <section class="panel hidden" id="viewClientes" data-view>
     <div class="inline"><h2>Clientes</h2><button class="secondary sm right" data-home>Regresar al menú</button></div>
     <div class="grid" style="grid-template-columns:1fr 1fr;gap:14px">
       <div class="rows">
         <h3>Alta de cliente</h3>
         <div class="inline">
-          <div style="flex:1"><label>Empresa</label><input id="cEmpresa" type="text"/></div>
-          <div style="flex:1"><label>Razón social</label><input id="cRazon" type="text"/></div>
+          <div style="flex:1"><label>Empresa</label><input id="cEmpresa" type="text"></div>
+          <div style="flex:1"><label>Razón social</label><input id="cRazon" type="text"></div>
         </div>
         <div class="inline">
-          <div style="width:180px"><label>ID Cliente</label><input id="cId" type="text"/></div>
-          <div style="width:200px"><label>RFC</label><input id="cRFC" type="text"/></div>
+          <div style="width:180px"><label>ID Cliente</label><input id="cId" type="text"></div>
+          <div style="width:200px"><label>RFC</label><input id="cRFC" type="text"></div>
           <div style="width:220px"><label>Tier</label>
             <select id="cTier">
               <option>Distribuidor</option>
@@ -217,8 +193,8 @@
           </div>
         </div>
         <div class="inline">
-          <div style="width:200px"><label>Teléfono</label><input id="cTel" type="text"/></div>
-          <div style="flex:1"><label>Email</label><input id="cEmail" type="text"/></div>
+          <div style="width:200px"><label>Teléfono</label><input id="cTel" type="text"></div>
+          <div style="flex:1"><label>Email</label><input id="cEmail" type="text"></div>
         </div>
         <label>Forma de pago</label>
         <select id="cPago">
@@ -233,7 +209,7 @@
       </div>
       <div class="rows">
         <h3>Listado</h3>
-        <input id="clientSearch" type="text" placeholder="Buscar por empresa/razón/email…"/>
+        <input id="clientSearch" type="text" placeholder="Buscar por empresa/razón/email…">
         <div class="scroll">
           <table id="clientTable">
             <thead><tr><th>Empresa</th><th>Razón social</th><th>RFC</th><th>Tier</th><th>Email</th><th class="right">Acciones</th></tr></thead>
@@ -244,25 +220,16 @@
     </div>
   </section>
 
-  <!-- ===== VENTAS ===== -->
-  <section class="panel hidden" id="viewVentas">
+  <!-- VENTAS -->
+  <section class="panel hidden" id="viewVentas" data-view>
     <div class="inline"><h2>Ventas / Remisiones</h2><button class="secondary sm right" data-home>Regresar al menú</button></div>
 
     <div class="rows">
       <h3>Nueva remisión</h3>
       <div class="inline">
-        <div style="flex:2">
-          <label>Cliente</label>
-          <select id="vCliente"></select>
-        </div>
-        <div style="width:160px">
-          <label>Folio</label>
-          <input id="vFolio" type="text"/>
-        </div>
-        <div style="width:180px">
-          <label>Fecha</label>
-          <input id="vFecha" type="date"/>
-        </div>
+        <div style="flex:2"><label>Cliente</label><select id="vCliente"></select></div>
+        <div style="width:160px"><label>Folio</label><input id="vFolio" type="text"></div>
+        <div style="width:180px"><label>Fecha</label><input id="vFecha" type="date"></div>
       </div>
 
       <div class="scroll" style="max-height:360px">
@@ -273,9 +240,7 @@
           <tbody></tbody>
         </table>
       </div>
-      <div>
-        <button id="addLinea" class="secondary sm">Añadir producto</button>
-      </div>
+      <div><button id="addLinea" class="secondary sm">Añadir producto</button></div>
 
       <div class="inline right" style="gap:20px">
         <div>
@@ -286,7 +251,7 @@
         </div>
       </div>
       <label>Observaciones</label>
-      <input id="vObs" type="text"/>
+      <input id="vObs" type="text">
       <div class="inline">
         <button id="guardarVenta">Guardar / Descargar PDF</button>
         <button class="secondary" id="limpiarVenta">Limpiar</button>
@@ -309,205 +274,389 @@
 <div id="toast" style="position:fixed;right:16px;bottom:16px;background:#121826;border:1px solid var(--border);padding:10px 14px;border-radius:10px;opacity:0;transform:translateY(10px);transition:.2s;z-index:99"></div>
 
 <script>
-// ======= Datos base =======
-const DB_KEY = 'erp_anv_db_v1';
-const STAGES = ['Embotellado','Degollado','Producto terminado'];
-const WAREHOUSES = ['Bodega en medio','Bodega chica','Bodega externa','Bodega casa','Espacio AN','Oficina'];
-const TIERS = ['Distribuidor','Centro de Consumo','Nuevo Distribuidor','Nuevo Centro de Consumo'];
+(function(){
+  const DB_KEY = 'erp_anv_db_v2';
+  const STAGES = ['Embotellado','Degollado','Producto terminado'];
+  const WAREHOUSES = ['Bodega en medio','Bodega chica','Bodega externa','Bodega casa','Espacio AN','Oficina'];
+  const TIERS = ['Distribuidor','Centro de Consumo','Nuevo Distribuidor','Nuevo Centro de Consumo'];
 
-let db = { // persistido en LocalStorage
-  products: [], // {id,name,sku,cost,prices:{D,CC,ND,NCC}}
-  stock: [],    // {id,productId,warehouse,stage,qty,lot,notes}
-  moves: [],    // historial inventario
-  clients: [],  // {id,empresa,razon,idCliente,rfc,tel,email,tier,pago,dir}
-  ventas: []    // {id,folio,fecha,clienteId,items:[{sku,productId,um,cant,precio,subtotal}], subtotal,ieps,iva,total,obs,ts}
-};
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+  function uid(){ return Math.random().toString(36).slice(2,9) }
+  function money(n){ return new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n||0) }
+  function num(v){ return Number(v||0) }
+  function showToast(msg){ const t=$('#toast'); t.textContent=msg; t.style.opacity=1; t.style.transform='translateY(0)'; setTimeout(()=>{t.style.opacity=0;t.style.transform='translateY(10px)';}, 1800) }
+  function save(){ localStorage.setItem(DB_KEY, JSON.stringify(db)) }
+  function load(){ const raw = localStorage.getItem(DB_KEY); if(raw){ try{ db = JSON.parse(raw) } catch(e){} } else { seedDemo(); save(); } }
 
-// ======= Utils =======
-const $ = sel => document.querySelector(sel);
-function uid(){ return Math.random().toString(36).slice(2,9) }
-function money(n){ return new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n||0) }
-function num(v){ return Number(v||0) }
-function showToast(msg){ const t=$('#toast'); t.textContent=msg; t.style.opacity=1; t.style.transform='translateY(0)'; setTimeout(()=>{t.style.opacity=0;t.style.transform='translateY(10px)';}, 1800) }
-function save(){ localStorage.setItem(DB_KEY, JSON.stringify(db)) }
-function load(){ const raw = localStorage.getItem(DB_KEY); if(raw){ try{ db = JSON.parse(raw) }catch(e){} } else { seedDemo(); save(); } }
-function seedDemo(){
-  const p1 = {id:uid(), name:'Pet-Nat Rosado 2024', sku:'AN-PN24', cost:120, prices:{D:180, CC:220, ND:200, NCC:240}};
-  const p2 = {id:uid(), name:'Espumoso Tradicional 2023', sku:'AN-ET23', cost:140, prices:{D:210, CC:260, ND:230, NCC:270}};
-  const p3 = {id:uid(), name:'Tinto Natural 2022', sku:'AN-TN22', cost:90, prices:{D:140, CC:180, ND:150, NCC:190}};
-  db.products=[p1,p2,p3];
-  db.stock=[
-    {id:uid(), productId:p1.id, warehouse:'Bodega en medio', stage:'Embotellado', qty:120, lot:'L2407-R1', notes:'Ingreso inicial'},
-    {id:uid(), productId:p2.id, warehouse:'Bodega externa', stage:'Degollado', qty:80, lot:'L2311-B', notes:'Reposición'},
-    {id:uid(), productId:p3.id, warehouse:'Oficina', stage:'Producto terminado', qty:24, lot:'L2209-NAT', notes:'Muestras'}
-  ];
-  db.clients=[
-    {id:uid(), empresa:'Cliente Demo', razon:'Cliente Demo SA de CV', idCliente:'CLI-001', rfc:'DEMO010101AA1', tel:'555-0000', email:'demo@anv.mx', tier:'Distribuidor', pago:'Transferencia', dir:'CDMX'}
-  ];
-}
+  let db = { products: [], stock: [], moves: [], clients: [], ventas: [] };
 
-// ======= Navegación =======
-function showView(id){ ['viewMenu','viewInventario','viewClientes','viewVentas'].forEach(v=>$('#'+v).classList.add('hidden')); $('#'+id).classList.remove('hidden'); document.querySelector('header .sub').textContent = id==='viewMenu'?'Menú principal':($('#'+id+' h2').textContent||'ERP ANV'); }
-$('#gotoInventario').onclick=()=>showView('viewInventario');
-$('#gotoClientes').onclick=()=>showView('viewClientes');
-$('#gotoVentas').onclick=()=>{refreshVentaClients();refreshVentaTable();showView('viewVentas')};
-$('#btnGoHome').onclick=()=>showView('viewMenu');
-// Delegación de eventos como respaldo por si los handlers directos no se añaden
-document.addEventListener('click', (ev)=>{
-  const b = ev.target.closest('button'); if(!b) return;
-  if(b.id==='gotoInventario') showView('viewInventario');
-  if(b.id==='gotoClientes') showView('viewClientes');
-  if(b.id==='gotoVentas') { refreshVentaClients(); refreshVentaTable(); showView('viewVentas'); }
-  if(b.hasAttribute('data-home') || b.id==='btnGoHome') showView('viewMenu');
-});
-document.querySelectorAll('[data-home]').forEach(b=> b.addEventListener('click', ()=>showView('viewMenu')));
-
-// ======= Inventario =======
-function fillSelectOptions(sel, arr, includeBlank=false){ sel.innerHTML = includeBlank?'<option value=""></option>':''; for(const v of arr){ const o=document.createElement('option'); o.value=v;o.textContent=v; sel.appendChild(o);} }
-function fillProductsSelect(sel){ sel.innerHTML=''; for(const p of db.products){ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; sel.appendChild(o);} }
-function productById(id){ return db.products.find(p=>p.id===id) }
-function fmt(n){ return new Intl.NumberFormat('es-MX').format(n) }
-
-function renderProducts(){
-  const q = $('#productSearch').value.trim().toLowerCase();
-  const tbody = $('#productTable tbody'); tbody.innerHTML='';
-  let count=0;
-  for(const p of db.products){
-    const blob=(p.name+' '+p.sku).toLowerCase(); if(q && !blob.includes(q)) continue; count++;
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${p.name}</td><td class="muted">${p.sku||''}</td>
-      <td class="right">${money(p.cost)}</td>
-      <td class="right">${money(p.prices.D)}</td>
-      <td class="right">${money(p.prices.CC)}</td>
-      <td class="right">${money(p.prices.ND)}</td>
-      <td class="right">${money(p.prices.NCC)}</td>
-      <td class="right"><button class="sm secondary" data-del="${p.id}">Eliminar</button></td>`;
-    tbody.appendChild(tr);
+  function seedDemo(){
+    const p1 = {id:uid(), name:'Pet-Nat Rosado 2024', sku:'AN-PN24', cost:120, prices:{D:180, CC:220, ND:200, NCC:240}};
+    const p2 = {id:uid(), name:'Espumoso Tradicional 2023', sku:'AN-ET23', cost:140, prices:{D:210, CC:260, ND:230, NCC:270}};
+    const p3 = {id:uid(), name:'Tinto Natural 2022', sku:'AN-TN22', cost:90, prices:{D:140, CC:180, ND:150, NCC:190}};
+    db.products=[p1,p2,p3];
+    db.stock=[
+      {id:uid(), productId:p1.id, warehouse:'Bodega en medio', stage:'Embotellado', qty:120, lot:'L2407-R1', notes:'Ingreso inicial'},
+      {id:uid(), productId:p2.id, warehouse:'Bodega externa', stage:'Degollado', qty:80, lot:'L2311-B', notes:'Reposición'},
+      {id:uid(), productId:p3.id, warehouse:'Oficina', stage:'Producto terminado', qty:24, lot:'L2209-NAT', notes:'Muestras'}
+    ];
+    db.clients=[{id:uid(), empresa:'Cliente Demo', razon:'Cliente Demo SA de CV', idCliente:'CLI-001', rfc:'DEMO010101AA1', tel:'555-0000', email:'demo@anv.mx', tier:'Distribuidor', pago:'Transferencia', dir:'CDMX'}];
   }
-  $('#productCount').textContent = `${count} producto${count!==1?'s':''}`;
-  tbody.onclick = e=>{ const id=e.target.getAttribute('data-del'); if(!id) return; if(confirm('¿Eliminar producto?')){ db.products=db.products.filter(p=>p.id!==id); save(); refreshInventario(); showToast('Producto eliminado'); } };
-  fillProductsSelect($('#sProduct')); fillProductsSelect($('#mProduct'));
-}
 
-function renderStock(){
-  const wh=$('#fWarehouse').value, st=$('#fStage').value, txt=$('#fText').value.trim().toLowerCase();
-  const tbody=$('#stockTable tbody'); tbody.innerHTML='';
-  const rows=[];
-  for(const s of db.stock){ const p=productById(s.productId)||{name:'(eliminado)',sku:''}; const key=[s.productId,s.warehouse,s.stage,s.lot||''].join('|'); let r=rows.find(x=>x.key===key); if(!r){ r={key,productId:s.productId,product:p,warehouse:s.warehouse,stage:s.stage,lot:s.lot||'',qty:0}; rows.push(r);} r.qty+=s.qty; }
-  const filtered = rows.filter(r=>{ if(wh && r.warehouse!==wh) return false; if(st && r.stage!==st) return false; const blob=(r.product.name+' '+r.product.sku+' '+r.lot).toLowerCase(); if(txt && !blob.includes(txt)) return false; return true; }).sort((a,b)=> a.product.name.localeCompare(b.product.name));
-  for(const r of filtered){ const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.product.name}</td><td class="muted">${r.product.sku}</td><td>${r.warehouse}</td><td>${r.stage}</td><td class="muted">${r.lot}</td><td class="right">${fmt(r.qty)}</td><td class="right"><button class="sm secondary" data-split="${r.key}">Ajustar / dividir</button></td>`; tbody.appendChild(tr);}  
-  tbody.onclick=e=>{ const key=e.target.getAttribute('data-split'); if(!key) return; openSplitDialog(key); };
-}
+  function showView(id){
+    $$('[data-view]').forEach(s=>s.classList.add('hidden'));
+    $('#'+id).classList.remove('hidden');
+    const sub = (id==='viewMenu') ? 'Menú principal' : ($('#'+id+' h2')?.textContent || 'ERP ANV');
+    document.querySelector('header .sub').textContent = sub;
+  }
 
-function renderHistory(){
-  const tbody=$('#histTable tbody'); tbody.innerHTML='';
-  const dFrom=$('#hFrom').value?new Date($('#hFrom').value):null; const dTo=$('#hTo').value?new Date($('#hTo').value):null;
-  const rows=db.moves.slice().sort((a,b)=> b.ts.localeCompare(a.ts));
-  for(const m of rows){ const dt=new Date(m.ts); if(dFrom && dt < new Date(dFrom.getFullYear(),dFrom.getMonth(),dFrom.getDate())) continue; if(dTo && dt > new Date(dTo.getFullYear(),dTo.getMonth(),dTo.getDate(),23,59,59)) continue; const p=productById(m.productId)||{name:'(eliminado)'}; const tr=document.createElement('tr'); tr.innerHTML=`<td>${dt.toLocaleString()}</td><td>${p.name}</td><td>${m.from||'—'}</td><td>${m.to||'—'}</td><td>${m.stage||'—'}</td><td class="right">${fmt(m.qty)}</td><td class="muted">${m.notes||''}</td>`; tbody.appendChild(tr);} }
+  document.addEventListener('click', (ev)=>{
+    const b = ev.target.closest('button');
+    if(!b) return;
+    if(b.id==='gotoInventario') showView('viewInventario');
+    else if(b.id==='gotoClientes') showView('viewClientes');
+    else if(b.id==='gotoVentas'){ refreshVentaClients(); refreshVentaTable(); showView('viewVentas'); }
+    else if(b.id==='btnHome' || b.hasAttribute('data-home')) showView('viewMenu');
+  });
 
-function refreshInventario(){
-  fillSelectOptions($('#sWarehouse'), WAREHOUSES);
-  fillSelectOptions($('#mFrom'), WAREHOUSES, true);
-  fillSelectOptions($('#mTo'), WAREHOUSES, true);
-  fillSelectOptions($('#fWarehouse'), [''].concat(WAREHOUSES));
-  fillSelectOptions($('#sStage'), STAGES);
-  fillSelectOptions($('#fStage'), [''].concat(STAGES));
-  const ms=$('#mStage'); ms.innerHTML='<option value="">— Mantener —</option>'; STAGES.forEach(s=>{ const o=document.createElement('option'); o.value=s;o.textContent=s; ms.appendChild(o);});
-  renderProducts(); renderStock(); renderHistory();
-}
+  function fillSelectOptions(sel, arr, includeBlank){
+    sel.innerHTML = includeBlank?'<option value=""></option>':'';
+    arr.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+  }
+  function fillProductsSelect(sel){
+    sel.innerHTML='';
+    db.products.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; sel.appendChild(o); });
+  }
+  function productById(id){ return db.products.find(p=>p.id===id) }
+  function fmt(n){ return new Intl.NumberFormat('es-MX').format(n) }
 
-$('#addProduct').onclick=()=>{ const name=$('#pName').value.trim(); if(!name){showToast('Nombre requerido');return} const sku=$('#pSKU').value.trim(); const cost=num($('#pCost').value); const prices={D:num($('#pPriceD').value), CC:num($('#pPriceCC').value), ND:num($('#pPriceND').value), NCC:num($('#pPriceNCC').value)}; db.products.push({id:uid(), name, sku, cost, prices}); ['#pName','#pSKU','#pCost','#pPriceD','#pPriceCC','#pPriceND','#pPriceNCC'].forEach(s=>$(s).value=''); save(); renderProducts(); showToast('Producto agregado'); };
-$('#productSearch').oninput=renderProducts;
-$('#recount').onclick=()=>{ renderStock(); showToast('Totales recalculados'); };
-$('#addStock').onclick=()=>{ const productId=$('#sProduct').value; const warehouse=$('#sWarehouse').value; const stage=$('#sStage').value; const qty=parseInt($('#sQty').value,10); const lot=$('#sLot').value.trim(); const notes=$('#sNotes').value.trim(); if(!productId||!warehouse||!stage||!(qty>0)){showToast('Completa producto, bodega, etapa y cantidad');return} db.stock.push({id:uid(), productId, warehouse, stage, qty, lot, notes}); db.moves.push({ts:new Date().toISOString(), productId, from:'(alta)', to:warehouse, stage, qty, notes:notes||'Alta de stock'}); ['#sQty','#sLot','#sNotes'].forEach(s=>$(s).value=''); save(); renderStock(); renderHistory(); showToast('Stock agregado'); };
-$('#doMove').onclick=()=>{ const productId=$('#mProduct').value; const from=$('#mFrom').value; const to=$('#mTo').value; const stageNew=$('#mStage').value; const qty=parseInt($('#mQty').value,10); const notes=$('#mNotes').value.trim(); if(!productId||!from||!to||!(qty>0)){showToast('Datos incompletos');return} if(from===to && !stageNew){showToast('Cambia etapa o bodega');return} const candidates=db.stock.filter(s=>s.productId===productId && s.warehouse===from); if(!candidates.length){showToast('Sin stock en origen');return} let remaining=qty; const order=s=>STAGES.indexOf(s.stage); candidates.sort((a,b)=>order(a)-order(b)); let stageApplied=stageNew||null; const consumed=[]; for(const row of candidates){ const take=Math.min(row.qty, remaining); if(take>0){ row.qty-=take; consumed.push({stage:row.stage,qty:take,lot:row.lot}); remaining-=take; if(stageApplied===null) stageApplied=row.stage; } if(remaining===0) break; } db.stock=db.stock.filter(s=>s.qty>0); if(remaining>0){showToast('Stock insuficiente');return} const finalStage=stageNew||stageApplied||STAGES[0]; const lotNote=consumed.map(c=>c.lot||'').filter(Boolean).join(','); db.stock.push({id:uid(), productId, warehouse:to, stage:finalStage, qty, lot: lotNote?('mix:'+lotNote):'', notes}); db.moves.push({ts:new Date().toISOString(), productId, from, to, stage: finalStage + (stageNew?' (cambio)':''), qty, notes}); ['#mQty','#mNotes'].forEach(s=>$(s).value=''); save(); renderStock(); renderHistory(); showToast('Movimiento registrado'); };
-$('#btnClearFilters').onclick=()=>{ $('#fWarehouse').value=''; $('#fStage').value=''; $('#fText').value=''; renderStock(); };
-$('#btnClearDates').onclick=()=>{ $('#hFrom').value=''; $('#hTo').value=''; renderHistory(); };
+  function renderProducts(){
+    const q = $('#productSearch').value.trim().toLowerCase();
+    const tbody = $('#productTable tbody'); tbody.innerHTML=''; let count=0;
+    for(const p of db.products){
+      const blob=(p.name+' '+p.sku).toLowerCase(); if(q && !blob.includes(q)) continue; count++;
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${p.name}</td><td class="muted">${p.sku||''}</td>
+        <td class="right">${money(p.cost)}</td>
+        <td class="right">${money(p.prices.D)}</td>
+        <td class="right">${money(p.prices.CC)}</td>
+        <td class="right">${money(p.prices.ND)}</td>
+        <td class="right">${money(p.prices.NCC)}</td>
+        <td class="right"><button class="sm danger" data-del="${p.id}">Eliminar</button></td>`;
+      tbody.appendChild(tr);
+    }
+    $('#productCount').textContent = `${count} producto${count!==1?'s':''}`;
+    tbody.onclick = (e)=>{
+      const id = e.target.getAttribute('data-del');
+      if(!id) return;
+      if(confirm('¿Eliminar producto?')){
+        db.products = db.products.filter(p=>p.id!==id); save(); refreshInventario(); showToast('Producto eliminado');
+      }
+    };
+    fillProductsSelect($('#sProduct')); fillProductsSelect($('#mProduct'));
+  }
 
-function openSplitDialog(key){ const [productId,warehouse,stage,lot]=key.split('|'); const current=db.stock.filter(s=>s.productId===productId && s.warehouse===warehouse && s.stage===stage && (s.lot||'')===lot).reduce((a,b)=>a+b.qty,0); const p=productById(productId)||{name:'(eliminado)'}; const inp=prompt(`Ajustar/DIVIDIR\n${p.name}\n${warehouse} • ${stage}${lot?(' • Lote '+lot):''}\nActual: ${current}\n\nNueva cantidad (ajuste) o\n"Bodega,Etapa,Cantidad" para dividir`); if(!inp) return; if(inp.includes(',')){ const parts=inp.split(',').map(x=>x.trim()); if(parts.length<3){showToast('Formato inválido');return} const newWh=parts[0], newSt=parts[1], qty=parseInt(parts[2],10); if(!WAREHOUSES.includes(newWh)||!STAGES.includes(newSt)||!(qty>0)){showToast('Datos inválidos');return} if(qty>current){showToast('Excede disponible');return} let remaining=qty; for(const row of db.stock){ if(row.productId===productId&&row.warehouse===warehouse&&row.stage===stage&&(row.lot||'')===lot){ const take=Math.min(row.qty,remaining); row.qty-=take; remaining-=take; if(remaining===0) break; } } db.stock=db.stock.filter(s=>s.qty>0); db.stock.push({id:uid(), productId, warehouse:newWh, stage:newSt, qty, lot:lot?('sub:'+lot):'', notes:'División manual'}); db.moves.push({ts:new Date().toISOString(), productId, from:warehouse, to:newWh, stage:newSt+' (división)', qty, notes:'División manual'}); save(); renderStock(); renderHistory(); showToast('División creada'); } else { const newQty=parseInt(inp,10); if(!(newQty>=0)){showToast('Cantidad inválida');return} const diff=newQty-current; if(diff===0){showToast('Sin cambios');return} if(diff>0){ db.stock.push({id:uid(), productId, warehouse, stage, qty:diff, lot, notes:'Ajuste +'}); db.moves.push({ts:new Date().toISOString(), productId, from:'(ajuste +)', to:warehouse, stage, qty:diff, notes:'Ajuste positivo'}); } else { let remaining=-diff; for(const row of db.stock){ if(row.productId===productId&&row.warehouse===warehouse&&row.stage===stage&&(row.lot||'')===lot){ const take=Math.min(row.qty,remaining); row.qty-=take; remaining-=take; if(remaining===0) break; } } db.stock=db.stock.filter(s=>s.qty>0); db.moves.push({ts:new Date().toISOString(), productId, from:warehouse, to:'(ajuste -)', stage, qty:-diff, notes:'Ajuste negativo'}); } save(); renderStock(); renderHistory(); showToast('Ajuste realizado'); }
+  function renderStock(){
+    const wh=$('#fWarehouse').value, st=$('#fStage').value, txt=$('#fText').value.trim().toLowerCase();
+    const tbody=$('#stockTable tbody'); tbody.innerHTML='';
+    const rows=[];
+    for(const s of db.stock){
+      const p = productById(s.productId) || {name:'(eliminado)', sku:''};
+      const key=[s.productId,s.warehouse,s.stage,s.lot||''].join('|');
+      let r = rows.find(x=>x.key===key);
+      if(!r){ r={key,productId:s.productId,product:p,warehouse:s.warehouse,stage:s.stage,lot:s.lot||'',qty:0}; rows.push(r); }
+      r.qty += s.qty;
+    }
+    const filtered = rows.filter(r=>{
+      if(wh && r.warehouse!==wh) return false;
+      if(st && r.stage!==st) return false;
+      const blob=(r.product.name+' '+r.product.sku+' '+r.lot).toLowerCase();
+      if(txt && !blob.includes(txt)) return false;
+      return true;
+    }).sort((a,b)=> a.product.name.localeCompare(b.product.name));
+    for(const r of filtered){
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${r.product.name}</td><td class="muted">${r.product.sku||''}</td><td>${r.warehouse}</td><td>${r.stage}</td><td class="muted">${r.lot}</td><td class="right">${fmt(r.qty)}</td><td class="right"><button class="sm secondary" data-split="${r.key}">Ajustar / dividir</button></td>`;
+      tbody.appendChild(tr);
+    }
+    tbody.onclick = (e)=>{ const key=e.target.getAttribute('data-split'); if(!key) return; openSplitDialog(key); };
+  }
 
-// ======= Clientes =======
-function renderClients(){ const q=$('#clientSearch').value.trim().toLowerCase(); const tbody=$('#clientTable tbody'); tbody.innerHTML=''; for(const c of db.clients){ const blob=(c.empresa+' '+c.razon+' '+c.email+' '+c.rfc).toLowerCase(); if(q && !blob.includes(q)) continue; const tr=document.createElement('tr'); tr.innerHTML=`<td>${c.empresa}</td><td>${c.razon}</td><td class="muted">${c.rfc||''}</td><td>${c.tier}</td><td class="muted">${c.email||''}</td><td class="right"><button class="sm secondary" data-edit="${c.id}">Editar</button> <button class="sm danger" data-del="${c.id}">Eliminar</button></td>`; tbody.appendChild(tr);} tbody.onclick=e=>{ const id=e.target.getAttribute('data-del'); const idE=e.target.getAttribute('data-edit'); if(id){ if(confirm('¿Eliminar cliente?')){ db.clients=db.clients.filter(x=>x.id!==id); save(); renderClients(); showToast('Cliente eliminado'); } } if(idE){ const c=db.clients.find(x=>x.id===idE); if(!c) return; // cargar al formulario
-   $('#cEmpresa').value=c.empresa; $('#cRazon').value=c.razon; $('#cId').value=c.idCliente; $('#cRFC').value=c.rfc; $('#cTel').value=c.tel; $('#cEmail').value=c.email; $('#cTier').value=c.tier; $('#cPago').value=c.pago; $('#cDir').value=c.dir; $('#addCliente').dataset.editing=idE; }
-}; }
+  function renderHistory(){
+    const tbody=$('#histTable tbody'); tbody.innerHTML='';
+    const dFrom=$('#hFrom').value?new Date($('#hFrom').value):null; const dTo=$('#hTo').value?new Date($('#hTo').value):null;
+    const rows = db.moves.slice().sort((a,b)=> b.ts.localeCompare(a.ts));
+    for(const m of rows){
+      const dt = new Date(m.ts);
+      if(dFrom && dt < new Date(dFrom.getFullYear(),dFrom.getMonth(),dFrom.getDate())) continue;
+      if(dTo && dt > new Date(dTo.getFullYear(),dTo.getMonth(),dTo.getDate(),23,59,59)) continue;
+      const p = productById(m.productId) || {name:'(eliminado)'};
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${dt.toLocaleString()}</td><td>${p.name}</td><td>${m.from||'—'}</td><td>${m.to||'—'}</td><td>${m.stage||'—'}</td><td class="right">${fmt(m.qty)}</td><td class="muted">${m.notes||''}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
 
-$('#addCliente').onclick=()=>{ const data={ empresa:$('#cEmpresa').value.trim(), razon:$('#cRazon').value.trim(), idCliente:$('#cId').value.trim(), rfc:$('#cRFC').value.trim(), tel:$('#cTel').value.trim(), email:$('#cEmail').value.trim(), tier:$('#cTier').value, pago:$('#cPago').value, dir:$('#cDir').value.trim() }; if(!data.empresa && !data.razon){ showToast('Empresa o Razón social requerido'); return } const editing=$('#addCliente').dataset.editing; if(editing){ const idx=db.clients.findIndex(x=>x.id===editing); if(idx>=0){ db.clients[idx]={...db.clients[idx], ...data}; showToast('Cliente actualizado'); } delete $('#addCliente').dataset.editing; } else { db.clients.push({id:uid(), ...data}); showToast('Cliente agregado'); } ['#cEmpresa','#cRazon','#cId','#cRFC','#cTel','#cEmail','#cDir'].forEach(s=>$(s).value=''); save(); renderClients(); refreshVentaClients(); };
-$('#clientSearch').oninput=renderClients;
+  function refreshInventario(){
+    fillSelectOptions($('#sWarehouse'), WAREHOUSES);
+    fillSelectOptions($('#mFrom'), WAREHOUSES, true);
+    fillSelectOptions($('#mTo'), WAREHOUSES, true);
+    fillSelectOptions($('#fWarehouse'), [''].concat(WAREHOUSES));
+    fillSelectOptions($('#sStage'), STAGES);
+    fillSelectOptions($('#fStage'), [''].concat(STAGES));
+    const ms=$('#mStage'); ms.innerHTML='<option value="">— Mantener —</option>'; STAGES.forEach(s=>{ const o=document.createElement('option'); o.value=s; o.textContent=s; ms.appendChild(o); });
+    renderProducts(); renderStock(); renderHistory();
+  }
 
-// ======= Ventas =======
-function refreshVentaClients(){ const sel=$('#vCliente'); sel.innerHTML='<option value="">— Selecciona —</option>'; for(const c of db.clients){ const o=document.createElement('option'); o.value=c.id; o.textContent=c.empresa || c.razon || c.idCliente; sel.appendChild(o); } }
+  $('#addProduct').addEventListener('click', ()=>{
+    const name=$('#pName').value.trim(); if(!name){showToast('Nombre requerido');return}
+    const sku=$('#pSKU').value.trim();
+    const cost=num($('#pCost').value);
+    const prices={D:num($('#pPriceD').value), CC:num($('#pPriceCC').value), ND:num($('#pPriceND').value), NCC:num($('#pPriceNCC').value)};
+    db.products.push({id:uid(), name, sku, cost, prices});
+    ['#pName','#pSKU','#pCost','#pPriceD','#pPriceCC','#pPriceND','#pPriceNCC'].forEach(s=>$(s).value='');
+    save(); renderProducts(); showToast('Producto agregado');
+  });
+  $('#productSearch').addEventListener('input', renderProducts);
+  $('#recount').addEventListener('click', ()=>{ renderStock(); showToast('Totales recalculados'); });
+  $('#addStock').addEventListener('click', ()=>{
+    const productId=$('#sProduct').value; const warehouse=$('#sWarehouse').value; const stage=$('#sStage').value; const qty=parseInt($('#sQty').value,10); const lot=$('#sLot').value.trim(); const notes=$('#sNotes').value.trim();
+    if(!productId||!warehouse||!stage||!(qty>0)){showToast('Completa producto, bodega, etapa y cantidad');return}
+    db.stock.push({id:uid(), productId, warehouse, stage, qty, lot, notes});
+    db.moves.push({ts:new Date().toISOString(), productId, from:'(alta)', to:warehouse, stage, qty, notes:notes||'Alta de stock'});
+    ['#sQty','#sLot','#sNotes'].forEach(s=>$(s).value=''); save(); renderStock(); renderHistory(); showToast('Stock agregado');
+  });
+  $('#doMove').addEventListener('click', ()=>{
+    const productId=$('#mProduct').value; const from=$('#mFrom').value; const to=$('#mTo').value; const stageNew=$('#mStage').value; const qty=parseInt($('#mQty').value,10); const notes=$('#mNotes').value.trim();
+    if(!productId||!from||!to||!(qty>0)){showToast('Datos incompletos');return}
+    if(from===to && !stageNew){showToast('Cambia etapa o bodega');return}
+    const candidates = db.stock.filter(s=>s.productId===productId && s.warehouse===from); if(!candidates.length){showToast('Sin stock en origen');return}
+    let remaining=qty; const order=s=>STAGES.indexOf(s.stage); candidates.sort((a,b)=>order(a)-order(b));
+    let stageApplied=stageNew||null; const consumed=[];
+    for(const row of candidates){ const take=Math.min(row.qty,remaining); if(take>0){ row.qty-=take; consumed.push({stage:row.stage,qty:take,lot:row.lot}); remaining-=take; if(stageApplied===null) stageApplied=row.stage; } if(remaining===0) break; }
+    db.stock=db.stock.filter(s=>s.qty>0); if(remaining>0){showToast('Stock insuficiente');return}
+    const finalStage=stageNew||stageApplied||STAGES[0]; const lotNote=consumed.map(c=>c.lot||'').filter(Boolean).join(',');
+    db.stock.push({id:uid(), productId, warehouse:to, stage:finalStage, qty, lot: lotNote?('mix:'+lotNote):'', notes});
+    db.moves.push({ts:new Date().toISOString(), productId, from, to, stage: finalStage + (stageNew?' (cambio)':''), qty, notes});
+    ['#mQty','#mNotes'].forEach(s=>$(s).value=''); save(); renderStock(); renderHistory(); showToast('Movimiento registrado');
+  });
+  $('#btnClearFilters').addEventListener('click', ()=>{ $('#fWarehouse').value=''; $('#fStage').value=''; $('#fText').value=''; renderStock(); });
+  $('#btnClearDates').addEventListener('click', ()=>{ $('#hFrom').value=''; $('#hTo').value=''; renderHistory(); });
 
-let ventaLineas=[]; // líneas en edición
-function nuevaLinea(){ return { id:uid(), productId:'', sku:'', desc:'', um:'Botella', cant:1, precio:0, subtotal:0 }; }
-function refreshVentaTable(){ const tbody=$('#ventaTable tbody'); tbody.innerHTML=''; for(const ln of ventaLineas){ const tr=document.createElement('tr'); tr.innerHTML=`
-  <td><input data-k="sku" data-id="${ln.id}" type="text" placeholder="SKU" value="${ln.sku}"></td>
-  <td><select data-k="productId" data-id="${ln.id}"></select></td>
-  <td><input data-k="um" data-id="${ln.id}" type="text" value="${ln.um}"></td>
-  <td class="right"><input data-k="cant" data-id="${ln.id}" type="number" min="1" step="1" value="${ln.cant}" style="width:90px"></td>
-  <td class="right"><input data-k="precio" data-id="${ln.id}" type="number" min="0" step="0.01" value="${ln.precio}" style="width:110px"></td>
-  <td class="right" data-sub="${ln.id}">${money(ln.subtotal)}</td>
-  <td class="right"><button class="sm danger" data-del-linea="${ln.id}">Quitar</button></td>`;
-  tbody.appendChild(tr);
-  const sel=tr.querySelector('select[data-k="productId"]'); sel.innerHTML='<option value="">— Producto —</option>'; for(const p of db.products){ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; if(p.id===ln.productId) o.selected=true; sel.appendChild(o);} }
-  tbody.oninput = onLineaInput; tbody.onclick = e=>{ const id=e.target.getAttribute('data-del-linea'); if(id){ ventaLineas=ventaLineas.filter(x=>x.id!==id); refreshVentaTable(); calcVenta(); } };
-  calcVenta();
-}
+  function openSplitDialog(key){
+    const [productId,warehouse,stage,lot]=key.split('|');
+    const current=db.stock.filter(s=>s.productId===productId && s.warehouse===warehouse && s.stage===stage && (s.lot||'')===lot).reduce((a,b)=>a+b.qty,0);
+    const p=productById(productId)||{name:'(eliminado)'};
+    const inp=prompt(`Ajustar/DIVIDIR
+${p.name}
+${warehouse} • ${stage}${lot?(' • Lote '+lot):''}
+Actual: ${current}
 
-function onLineaInput(e){ const id=e.target.getAttribute('data-id'); const k=e.target.getAttribute('data-k'); if(!id||!k) return; let ln=ventaLineas.find(x=>x.id===id); if(!ln) return; let v=e.target.value; if(k==='cant'||k==='precio'){ v=Number(v); if(!(v>=0)) v=0; } ln[k]=v; if(k==='productId'){ const p=productById(ln.productId); ln.sku = p?.sku||''; ln.desc=p?.name||''; // set precio por tier del cliente
-   const c = db.clients.find(x=>x.id===$('#vCliente').value); const tier=c?.tier||TIERS[0]; if(p){ const price = tier==='Distribuidor'?p.prices.D : tier==='Centro de Consumo'?p.prices.CC : tier==='Nuevo Distribuidor'?p.prices.ND : p.prices.NCC; ln.precio = price; } }
-  if(k==='sku'){ const p = db.products.find(px=>px.sku===ln.sku); if(p){ ln.productId=p.id; ln.desc=p.name; ln.precio = p.prices.D; /* se ajustará por tier al calcular */ } }
-  calcVenta(); refreshVentaTable(); }
+Nueva cantidad (ajuste) o
+"Bodega,Etapa,Cantidad" para dividir`);
+    if(!inp) return;
+    if(inp.includes(',')){
+      const parts=inp.split(',').map(x=>x.trim()); if(parts.length<3){showToast('Formato inválido');return}
+      const newWh=parts[0], newSt=parts[1], qty=parseInt(parts[2],10);
+      if(!WAREHOUSES.includes(newWh)||!STAGES.includes(newSt)||!(qty>0)){showToast('Datos inválidos');return}
+      if(qty>current){showToast('Excede disponible');return}
+      let remaining=qty;
+      for(const row of db.stock){ if(row.productId===productId&&row.warehouse===warehouse&&row.stage===stage&&(row.lot||'')===lot){ const take=Math.min(row.qty,remaining); row.qty-=take; remaining-=take; if(remaining===0) break; } }
+      db.stock=db.stock.filter(s=>s.qty>0);
+      db.stock.push({id:uid(), productId, warehouse:newWh, stage:newSt, qty, lot:lot?('sub:'+lot):'', notes:'División manual'});
+      db.moves.push({ts:new Date().toISOString(), productId, from:warehouse, to:newWh, stage:newSt+' (división)', qty, notes:'División manual'});
+      save(); renderStock(); renderHistory(); showToast('División creada');
+    } else {
+      const newQty=parseInt(inp,10); if(!(newQty>=0)){showToast('Cantidad inválida');return}
+      const diff=newQty-current; if(diff===0){showToast('Sin cambios');return}
+      if(diff>0){
+        db.stock.push({id:uid(), productId, warehouse, stage, qty:diff, lot, notes:'Ajuste +'});
+        db.moves.push({ts:new Date().toISOString(), productId, from:'(ajuste +)', to:warehouse, stage, qty:diff, notes:'Ajuste positivo'});
+      } else {
+        let remaining=-diff;
+        for(const row of db.stock){ if(row.productId===productId&&row.warehouse===warehouse&&row.stage===stage&&(row.lot||'')===lot){ const take=Math.min(row.qty,remaining); row.qty-=take; remaining-=take; if(remaining===0) break; } }
+        db.stock=db.stock.filter(s=>s.qty>0);
+        db.moves.push({ts:new Date().toISOString(), productId, from:warehouse, to:'(ajuste -)', stage, qty:-diff, notes:'Ajuste negativo'});
+      }
+      save(); renderStock(); renderHistory(); showToast('Ajuste realizado');
+    }
+  }
 
-function calcVenta(){ // precios por tier
-  const c = db.clients.find(x=>x.id===$('#vCliente').value); const tier=c?.tier||TIERS[0];
-  let subtotal=0; for(const ln of ventaLineas){ const p=productById(ln.productId); let price=ln.precio; if(p){ price = tier==='Distribuidor'?p.prices.D : tier==='Centro de Consumo'?p.prices.CC : tier==='Nuevo Distribuidor'?p.prices.ND : p.prices.NCC; ln.precio = price; ln.desc=p.name; ln.sku=p.sku; }
-    ln.subtotal = (ln.cant||0) * (ln.precio||0); subtotal += ln.subtotal; const cell=document.querySelector(`[data-sub="${ln.id}"]`); if(cell) cell.textContent=money(ln.subtotal); }
-  const ieps = subtotal * 0.265; const base = subtotal + ieps; const iva = base * 0.16; const total = subtotal + ieps + iva; $('#vSubtotal').textContent=money(subtotal); $('#vIEPS').textContent=money(ieps); $('#vIVA').textContent=money(iva); $('#vTotal').textContent=money(total); return {subtotal, ieps, iva, total}; }
+  function renderClients(){
+    const q=$('#clientSearch').value.trim().toLowerCase();
+    const tbody=$('#clientTable tbody'); tbody.innerHTML='';
+    for(const c of db.clients){
+      const blob=(c.empresa+' '+c.razon+' '+c.email+' '+c.rfc).toLowerCase();
+      if(q && !blob.includes(q)) continue;
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${c.empresa}</td><td>${c.razon}</td><td class="muted">${c.rfc||''}</td><td>${c.tier}</td><td class="muted">${c.email||''}</td><td class="right"><button class="sm secondary" data-edit="${c.id}">Editar</button> <button class="sm danger" data-del="${c.id}">Eliminar</button></td>`;
+      tbody.appendChild(tr);
+    }
+    tbody.onclick=(e)=>{
+      const id=e.target.getAttribute('data-del'); const idE=e.target.getAttribute('data-edit');
+      if(id){ if(confirm('¿Eliminar cliente?')){ db.clients=db.clients.filter(x=>x.id!==id); save(); renderClients(); showToast('Cliente eliminado'); } }
+      if(idE){ const c=db.clients.find(x=>x.id===idE); if(!c) return; $('#cEmpresa').value=c.empresa; $('#cRazon').value=c.razon; $('#cId').value=c.idCliente; $('#cRFC').value=c.rfc; $('#cTel').value=c.tel; $('#cEmail').value=c.email; $('#cTier').value=c.tier; $('#cPago').value=c.pago; $('#cDir').value=c.dir; $('#addCliente').dataset.editing=idE; }
+    };
+  }
 
-$('#addLinea').onclick=()=>{ ventaLineas.push(nuevaLinea()); refreshVentaTable(); };
-$('#limpiarVenta').onclick=()=>{ ventaLineas=[]; refreshVentaTable(); };
+  $('#addCliente').addEventListener('click', ()=>{
+    const data={ empresa:$('#cEmpresa').value.trim(), razon:$('#cRazon').value.trim(), idCliente:$('#cId').value.trim(), rfc:$('#cRFC').value.trim(), tel:$('#cTel').value.trim(), email:$('#cEmail').value.trim(), tier:$('#cTier').value, pago:$('#cPago').value, dir:$('#cDir').value.trim() };
+    if(!data.empresa && !data.razon){ showToast('Empresa o Razón social requerido'); return }
+    const editing=$('#addCliente').dataset.editing;
+    if(editing){ const idx=db.clients.findIndex(x=>x.id===editing); if(idx>=0){ db.clients[idx]={...db.clients[idx], ...data}; showToast('Cliente actualizado'); } delete $('#addCliente').dataset.editing; }
+    else { db.clients.push({id:uid(), ...data}); showToast('Cliente agregado'); }
+    ['#cEmpresa','#cRazon','#cId','#cRFC','#cTel','#cEmail','#cDir'].forEach(s=>$(s).value=''); save(); renderClients(); refreshVentaClients();
+  });
+  $('#clientSearch').addEventListener('input', renderClients);
 
-$('#guardarVenta').onclick=()=>{ const clienteId=$('#vCliente').value; if(!clienteId){ showToast('Selecciona cliente'); return } const folio=$('#vFolio').value.trim()||('R-'+Date.now()); const fecha=$('#vFecha').value||new Date().toISOString().slice(0,10); const obs=$('#vObs').value.trim(); const tot=calcVenta(); const items=ventaLineas.map(ln=>({ sku:ln.sku, productId:ln.productId, desc:ln.desc||productById(ln.productId)?.name||'', um:ln.um, cant:ln.cant, precio:ln.precio, subtotal:ln.subtotal })); const venta={ id:uid(), folio, fecha, clienteId, items, subtotal:tot.subtotal, ieps:tot.ieps, iva:tot.iva, total:tot.total, obs, ts:new Date().toISOString() };
-  db.ventas.push(venta); save(); renderVentasHist(); showToast('Remisión guardada'); generarPDF(venta); };
+  function refreshVentaClients(){ const sel=$('#vCliente'); sel.innerHTML='<option value="">— Selecciona —</option>'; db.clients.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.empresa || c.razon || c.idCliente; sel.appendChild(o); }); }
+  let ventaLineas=[];
+  function nuevaLinea(){ return { id:uid(), productId:'', sku:'', desc:'', um:'Botella', cant:1, precio:0, subtotal:0 }; }
+  function refreshVentaTable(){
+    const tbody=$('#ventaTable tbody'); tbody.innerHTML='';
+    for(const ln of ventaLineas){
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td><input data-k="sku" data-id="${ln.id}" type="text" placeholder="SKU" value="${ln.sku}"></td>
+        <td><select data-k="productId" data-id="${ln.id}"></select></td>
+        <td><input data-k="um" data-id="${ln.id}" type="text" value="${ln.um}"></td>
+        <td class="right"><input data-k="cant" data-id="${ln.id}" type="number" min="1" step="1" value="${ln.cant}" style="width:90px"></td>
+        <td class="right"><input data-k="precio" data-id="${ln.id}" type="number" min="0" step="0.01" value="${ln.precio}" style="width:110px"></td>
+        <td class="right" data-sub="${ln.id}">${money(ln.subtotal)}</td>
+        <td class="right"><button class="sm danger" data-del-linea="${ln.id}">Quitar</button></td>`;
+      tbody.appendChild(tr);
+      const sel=tr.querySelector('select[data-k="productId"]'); sel.innerHTML='<option value="">— Producto —</option>'; db.products.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.name; if(p.id===ln.productId) o.selected=true; sel.appendChild(o); });
+    }
+    tbody.oninput = onLineaInput;
+    tbody.onclick = (e)=>{ const id=e.target.getAttribute('data-del-linea'); if(id){ ventaLineas=ventaLineas.filter(x=>x.id!==id); refreshVentaTable(); calcVenta(); } };
+    calcVenta();
+  }
 
-function renderVentasHist(){ const tbody=$('#ventasHistTable tbody'); tbody.innerHTML=''; for(const v of db.ventas.slice().sort((a,b)=>b.ts.localeCompare(a.ts))){ const c=db.clients.find(x=>x.id===v.clienteId); const tr=document.createElement('tr'); tr.innerHTML=`<td>${v.folio}</td><td>${v.fecha}</td><td>${c?.empresa||c?.razon||'—'}</td><td class="right">${money(v.total)}</td><td class="right"><button class="sm secondary" data-ver="${v.id}">Ver</button> <button class="sm" data-pdf="${v.id}">PDF</button> <button class="sm warn" data-edit="${v.id}">Actualizar</button> <button class="sm danger" data-del="${v.id}">Eliminar</button></td>`; tbody.appendChild(tr);} tbody.onclick=e=>{ const id=e.target.getAttribute('data-del')||e.target.getAttribute('data-ver')||e.target.getAttribute('data-pdf')||e.target.getAttribute('data-edit'); if(!id) return; const act = e.target.getAttribute('data-del')?'del': e.target.getAttribute('data-ver')?'ver': e.target.getAttribute('data-pdf')?'pdf':'edit'; const venta=db.ventas.find(x=>x.id===id); if(!venta) return; if(act==='del'){ if(confirm('¿Eliminar remisión?')){ db.ventas=db.ventas.filter(x=>x.id!==id); save(); renderVentasHist(); showToast('Remisión eliminada'); } } else if(act==='ver'){ alert(detalleVentaTexto(venta)); } else if(act==='pdf'){ generarPDF(venta); } else if(act==='edit'){ cargarVentaEnFormulario(venta); } } };
+  function onLineaInput(e){
+    const id=e.target.getAttribute('data-id'); const k=e.target.getAttribute('data-k'); if(!id||!k) return;
+    let ln=ventaLineas.find(x=>x.id===id); if(!ln) return;
+    let v=e.target.value; if(k==='cant'||k==='precio'){ v=Number(v); if(!(v>=0)) v=0; }
+    ln[k]=v;
+    if(k==='productId'){ const p=productById(ln.productId); ln.sku=p?.sku||''; ln.desc=p?.name||''; const c=db.clients.find(x=>x.id===$('#vCliente').value); const tier=c?.tier||TIERS[0]; if(p){ const price = tier==='Distribuidor'?p.prices.D : tier==='Centro de Consumo'?p.prices.CC : tier==='Nuevo Distribuidor'?p.prices.ND : p.prices.NCC; ln.precio = price; } }
+    if(k==='sku'){ const p=db.products.find(px=>px.sku===ln.sku); if(p){ ln.productId=p.id; ln.desc=p.name; ln.precio=p.prices.D; } }
+    calcVenta(); refreshVentaTable();
+  }
 
-function detalleVentaTexto(v){ const c=db.clients.find(x=>x.id===v.clienteId); const li=v.items.map(i=>`• ${i.cant} x ${i.desc} (${i.sku}) @ ${money(i.precio)} = ${money(i.subtotal)}`).join('\n'); return `Folio: ${v.folio}\nFecha: ${v.fecha}\nCliente: ${(c?.empresa||c?.razon||'—')}\n-----------------------------\n${li}\n-----------------------------\nSubtotal: ${money(v.subtotal)}\nIEPS: ${money(v.ieps)}\nIVA: ${money(v.iva)}\nTOTAL: ${money(v.total)}\nObs: ${v.obs||''}`; }
+  function calcVenta(){
+    const c=db.clients.find(x=>x.id===$('#vCliente').value); const tier=c?.tier||TIERS[0];
+    let subtotal=0;
+    for(const ln of ventaLineas){
+      const p=productById(ln.productId);
+      let price=ln.precio;
+      if(p){ price = tier==='Distribuidor'?p.prices.D : tier==='Centro de Consumo'?p.prices.CC : tier==='Nuevo Distribuidor'?p.prices.ND : p.prices.NCC; ln.precio=price; ln.desc=p.name; ln.sku=p.sku; }
+      ln.subtotal=(ln.cant||0)*(ln.precio||0); subtotal+=ln.subtotal;
+      const cell=document.querySelector(`[data-sub="${ln.id}"]`); if(cell) cell.textContent=money(ln.subtotal);
+    }
+    const ieps=subtotal*0.265; const base=subtotal+ieps; const iva=base*0.16; const total=subtotal+ieps+iva;
+    $('#vSubtotal').textContent=money(subtotal); $('#vIEPS').textContent=money(ieps); $('#vIVA').textContent=money(iva); $('#vTotal').textContent=money(total);
+    return {subtotal, ieps, iva, total};
+  }
 
-function cargarVentaEnFormulario(v){ $('#vCliente').value=v.clienteId; $('#vFolio').value=v.folio; $('#vFecha').value=v.fecha; $('#vObs').value=v.obs||''; ventaLineas=v.items.map(i=>({ id:uid(), productId:i.productId, sku:i.sku, desc:i.desc, um:i.um, cant:i.cant, precio:i.precio, subtotal:i.subtotal })); refreshVentaTable(); showView('viewVentas'); showToast('Remisión cargada. Al guardar se genera una nueva versión.'); }
+  $('#addLinea').addEventListener('click', ()=>{ ventaLineas.push(nuevaLinea()); refreshVentaTable(); });
+  $('#limpiarVenta').addEventListener('click', ()=>{ ventaLineas=[]; refreshVentaTable(); });
 
-function generarPDF(v){ // ventana imprimible (el usuario puede Guardar como PDF)
-  const c=db.clients.find(x=>x.id===v.clienteId);
-  const w=window.open('','_blank');
-  const rows=v.items.map(i=>`<tr><td>${i.sku}</td><td>${i.desc}</td><td style="text-align:center">${i.um}</td><td style="text-align:right">${i.cant}</td><td style="text-align:right">${money(i.precio)}</td><td style="text-align:right">${money(i.subtotal)}</td></tr>`).join('');
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Remisión ${v.folio}</title>
-  <style>body{font-family:Arial,sans-serif;padding:24px;color:#000} h1{font-size:18px;margin:0 0 8px} table{width:100%;border-collapse:collapse} th,td{border:1px solid #999;padding:6px 8px;font-size:12px} .right{text-align:right} .muted{color:#666}</style>
-  </head><body>
-  <h1>Remisión: ${v.folio}</h1>
-  <div class="muted">Fecha: ${v.fecha}</div>
-  <h3>Cliente</h3>
-  <div>${c?.empresa||c?.razon||''}</div>
-  <div>RFC: ${c?.rfc||''}</div>
-  <div>Correo: ${c?.email||''} • Tel: ${c?.tel||''}</div>
-  <div>Dirección: ${c?.dir||''}</div>
-  <br/>
-  <table><thead><tr><th>SKU</th><th>Descripción</th><th>U.M.</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>${rows}</tbody></table>
-  <br/>
-  <table style="width:320px; margin-left:auto">
-    <tr><td>Subtotal</td><td class="right">${money(v.subtotal)}</td></tr>
-    <tr><td>IEPS (26.5%)</td><td class="right">${money(v.ieps)}</td></tr>
-    <tr><td>IVA (16%)</td><td class="right">${money(v.iva)}</td></tr>
-    <tr><th>Total</th><th class="right">${money(v.total)}</th></tr>
-  </table>
-  <p><strong>Observaciones:</strong> ${v.obs||''}</p>
-  <script>window.onload=()=>{window.print();}<\/script>
-  </body></html>`);
-  w.document.close();
-}
+  $('#guardarVenta').addEventListener('click', ()=>{
+    const clienteId=$('#vCliente').value; if(!clienteId){ showToast('Selecciona cliente'); return }
+    const folio=$('#vFolio').value.trim()||('R-'+Date.now()); const fecha=$('#vFecha').value||new Date().toISOString().slice(0,10); const obs=$('#vObs').value.trim();
+    const tot=calcVenta();
+    const items=ventaLineas.map(ln=>({ sku:ln.sku, productId:ln.productId, desc:ln.desc||productById(ln.productId)?.name||'', um:ln.um, cant:ln.cant, precio:ln.precio, subtotal:ln.subtotal }));
+    const venta={ id:uid(), folio, fecha, clienteId, items, subtotal:tot.subtotal, ieps:tot.ieps, iva:tot.iva, total:tot.total, obs, ts:new Date().toISOString() };
+    db.ventas.push(venta); save(); renderVentasHist(); showToast('Remisión guardada'); generarPDF(venta);
+  });
 
-// ===== Inicializar =====
-function init(){ load(); refreshInventario(); renderClients(); refreshVentaClients(); ventaLineas=[]; refreshVentaTable(); showView('viewMenu'); }
-init();
+  function renderVentasHist(){
+    const tbody=$('#ventasHistTable tbody'); tbody.innerHTML='';
+    for(const v of db.ventas.slice().sort((a,b)=>b.ts.localeCompare(a.ts))){
+      const c=db.clients.find(x=>x.id===v.clienteId);
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${v.folio}</td><td>${v.fecha}</td><td>${c?.empresa||c?.razon||'—'}</td><td class="right">${money(v.total)}</td><td class="right"><button class="sm secondary" data-ver="${v.id}">Ver</button> <button class="sm" data-pdf="${v.id}">PDF</button> <button class="sm warn" data-edit="${v.id}">Actualizar</button> <button class="sm danger" data-del="${v.id}">Eliminar</button></td>`;
+      tbody.appendChild(tr);
+    }
+    tbody.onclick=(e)=>{
+      const id=e.target.getAttribute('data-del')||e.target.getAttribute('data-ver')||e.target.getAttribute('data-pdf')||e.target.getAttribute('data-edit'); if(!id) return;
+      const act=e.target.getAttribute('data-del')?'del': e.target.getAttribute('data-ver')?'ver': e.target.getAttribute('data-pdf')?'pdf':'edit';
+      const venta=db.ventas.find(x=>x.id===id); if(!venta) return;
+      if(act==='del'){ if(confirm('¿Eliminar remisión?')){ db.ventas=db.ventas.filter(x=>x.id!==id); save(); renderVentasHist(); showToast('Remisión eliminada'); } }
+      else if(act==='ver'){ alert(detalleVentaTexto(venta)); }
+      else if(act==='pdf'){ generarPDF(venta); }
+      else if(act==='edit'){ cargarVentaEnFormulario(venta); }
+    };
+  }
+
+  function detalleVentaTexto(v){
+    const c=db.clients.find(x=>x.id===v.clienteId);
+    const li=v.items.map(i=>`• ${i.cant} x ${i.desc} (${i.sku}) @ ${money(i.precio)} = ${money(i.subtotal)}`).join('
+');
+    return `Folio: ${v.folio}
+Fecha: ${v.fecha}
+Cliente: ${(c?.empresa||c?.razon||'—')}
+-----------------------------
+${li}
+-----------------------------
+Subtotal: ${money(v.subtotal)}
+IEPS: ${money(v.ieps)}
+IVA: ${money(v.iva)}
+TOTAL: ${money(v.total)}
+Obs: ${v.obs||''}`;
+  }
+
+  function cargarVentaEnFormulario(v){
+    $('#vCliente').value=v.clienteId; $('#vFolio').value=v.folio; $('#vFecha').value=v.fecha; $('#vObs').value=v.obs||'';
+    ventaLineas=v.items.map(i=>({ id:uid(), productId:i.productId, sku:i.sku, desc:i.desc, um:i.um, cant:i.cant, precio:i.precio, subtotal:i.subtotal }));
+    refreshVentaTable(); showView('viewVentas'); showToast('Remisión cargada. Al guardar se genera una nueva versión.');
+  }
+
+  function generarPDF(v){
+    const c=db.clients.find(x=>x.id===v.clienteId);
+    const w=window.open('','_blank');
+    const rows=v.items.map(i=>`<tr><td>${i.sku}</td><td>${i.desc}</td><td style="text-align:center">${i.um}</td><td style="text-align:right">${i.cant}</td><td style="text-align:right">${money(i.precio)}</td><td style="text-align:right">${money(i.subtotal)}</td></tr>`).join('');
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Remisión ${v.folio}</title>
+    <style>body{font-family:Arial,sans-serif;padding:24px;color:#000} h1{font-size:18px;margin:0 0 8px} table{width:100%;border-collapse:collapse} th,td{border:1px solid #999;padding:6px 8px;font-size:12px} .right{text-align:right} .muted{color:#666}</style>
+    </head><body>
+    <h1>Remisión: ${v.folio}</h1>
+    <div class="muted">Fecha: ${v.fecha}</div>
+    <h3>Cliente</h3>
+    <div>${c?.empresa||c?.razon||''}</div>
+    <div>RFC: ${c?.rfc||''}</div>
+    <div>Correo: ${c?.email||''} • Tel: ${c?.tel||''}</div>
+    <div>Dirección: ${c?.dir||''}</div>
+    <br/>
+    <table><thead><tr><th>SKU</th><th>Descripción</th><th>U.M.</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>${rows}</tbody></table>
+    <br/>
+    <table style="width:320px; margin-left:auto">
+      <tr><td>Subtotal</td><td class="right">${money(v.subtotal)}</td></tr>
+      <tr><td>IEPS (26.5%)</td><td class="right">${money(v.ieps)}</td></tr>
+      <tr><td>IVA (16%)</td><td class="right">${money(v.iva)}</td></tr>
+      <tr><th>Total</th><th class="right">${money(v.total)}</th></tr>
+    </table>
+    <p><strong>Observaciones:</strong> ${v.obs||''}</p>
+    <script>window.onload=()=>{window.print();}<\/script>
+    </body></html>`);
+    w.document.close();
+  }
+
+  // ---------- Init ----------
+  function setup(){
+    load();
+    refreshInventario();
+    renderClients();
+    refreshVentaClients();
+    ventaLineas=[]; refreshVentaTable();
+    showView('viewMenu');
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', setup);
+  } else {
+    setup();
+  }
+})();
 </script>
 </body>
 </html>
