@@ -352,7 +352,7 @@ $('#gotoInventario').onclick=()=>showView('viewInventario');
 $('#gotoClientes').onclick=()=>showView('viewClientes');
 $('#gotoVentas').onclick=()=>{refreshVentaClients();refreshVentaTable();showView('viewVentas')};
 $('#btnGoHome').onclick=()=>showView('viewMenu');
-$$('[data-home]')?.forEach(b=> b.addEventListener('click',()=>showView('viewMenu')));
+document.querySelectorAll('[data-home]').forEach(b=> b.addEventListener('click', ()=>showView('viewMenu')));
 
 // ======= Inventario =======
 function fillSelectOptions(sel, arr, includeBlank=false){ sel.innerHTML = includeBlank?'<option value=""></option>':''; for(const v of arr){ const o=document.createElement('option'); o.value=v;o.textContent=v; sel.appendChild(o);} }
@@ -492,7 +492,7 @@ function generarPDF(v){ // ventana imprimible (el usuario puede Guardar como PDF
     <tr><th>Total</th><th class="right">${money(v.total)}</th></tr>
   </table>
   <p><strong>Observaciones:</strong> ${v.obs||''}</p>
-  <script>window.onload=()=>{window.print();}</script>
+  <script>window.onload=()=>{window.print();}<\/script>
   </body></html>`);
   w.document.close();
 }
