@@ -352,6 +352,14 @@ $('#gotoInventario').onclick=()=>showView('viewInventario');
 $('#gotoClientes').onclick=()=>showView('viewClientes');
 $('#gotoVentas').onclick=()=>{refreshVentaClients();refreshVentaTable();showView('viewVentas')};
 $('#btnGoHome').onclick=()=>showView('viewMenu');
+// Delegación de eventos como respaldo por si los handlers directos no se añaden
+document.addEventListener('click', (ev)=>{
+  const b = ev.target.closest('button'); if(!b) return;
+  if(b.id==='gotoInventario') showView('viewInventario');
+  if(b.id==='gotoClientes') showView('viewClientes');
+  if(b.id==='gotoVentas') { refreshVentaClients(); refreshVentaTable(); showView('viewVentas'); }
+  if(b.hasAttribute('data-home') || b.id==='btnGoHome') showView('viewMenu');
+});
 document.querySelectorAll('[data-home]').forEach(b=> b.addEventListener('click', ()=>showView('viewMenu')));
 
 // ======= Inventario =======
