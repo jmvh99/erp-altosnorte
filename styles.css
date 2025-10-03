@@ -1,0 +1,28 @@
+:root{
+  --bg:#0f1115; --panel:#171a21; --muted:#7a7f8a; --accent:#4da3ff; --accent2:#66d19e;
+  --text:#e9edf1; --warn:#ffcc66; --danger:#ff6b6b; --ok:#6be07b; --border:#262b36; --radius:12px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#0b0d12,#10131b 25%,#0f1115);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial}
+.top{position:sticky;top:0;background:rgba(15,17,21,.6);border-bottom:1px solid var(--border);backdrop-filter:saturate(180%) blur(10px);z-index:10}
+.wrap{max-width:1100px;margin:0 auto;padding:18px}
+h1{margin:0;font-size:1.2rem}
+.tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.tabs button{background:#232a38;color:#fff;border:1px solid var(--border);border-radius:10px;padding:8px 12px;cursor:pointer}
+.tabs .right{margin-left:auto}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.big{padding:16px 20px;font-size:1.05rem;background:var(--accent);border:none;border-radius:12px;color:#081018;cursor:pointer;font-weight:700}
+.note{color:var(--muted);font-size:.92rem;margin-top:10px}
+label{display:block;font-size:.9rem;color:var(--muted);margin:8px 0 6px}
+input,select,textarea{width:100%;background:#0f131a;color:var(--text);border:1px solid #212634;border-radius:10px;padding:10px 12px;outline:none}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:.92rem}
+th,td{padding:8px 10px;border-bottom:1px solid #1f2531;vertical-align:middle}
+thead th{position:sticky;top:0;background:#0f131a;z-index:1}
+.inline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.right{text-align:right;margin-left:auto}
+button.secondary{background:#232a38;color:#fff;border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+.home.active{display:block}
+#home{display:none}
+.panel.active{display:block}
+#mount{min-height:320px}
