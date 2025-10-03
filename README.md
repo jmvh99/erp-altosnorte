@@ -1,33 +1,29 @@
-# Inventario de Botellas — GitHub Pages
+# ERP ANV — Modular Skeleton (GitHub Pages)
 
-Este repositorio ya está listo para publicarse como **sitio estático**.
+## Estructura
+- index.html — menú e inyección dinámica de módulos vía ES Modules
+- styles.css — estilos base
+- app.js — router simple + loader dinámico
+- modules/store.js — estado compartido con pub/sub (localStorage)
+- modules/clientes.js — CRUD básico de clientes (escribe en store)
+- modules/inventario.js — añade movimientos a inventario (usa store)
+- modules/ventas.js — crea ventas, lee clientes/productos de store
 
-## 🧭 Pasos rápidos (GitHub Pages)
-1. Crea un repositorio nuevo en GitHub (por ejemplo: `inventario-altosnorte`).
-2. Sube **estos tres archivos** a la raíz del repo:
-   - `index.html` (la app)
-   - `.nojekyll` (archivo vacío para desactivar el procesamiento de Jekyll)
-   - `README.md` (este archivo)
-3. En GitHub, ve a **Settings → Pages**.
-4. En **Source**, elige **Deploy from a branch**.
-5. En **Branch**, elige **main** y carpeta **/ (root)** → **Save**.
-6. GitHub te dará un URL del estilo: `https://<tu-usuario>.github.io/inventario-altosnorte/`.
+## Despliegue en GitHub Pages
+1. Crea un repo y sube estos archivos en la raíz.
+2. En Settings → Pages → Source: elige `main` (o la rama que uses) y carpeta `/root`.
+3. Abre `https://<tu-usuario>.github.io/<tu-repo>/`
 
-> Tip: Si no ves la opción Pages, asegúrate de haber hecho al menos un commit en `main`.
+> Nota: Los ES Modules y rutas relativas funcionan directo en Pages sin bundler.
 
-## 🧪 Probar localmente
-Abre `index.html` en tu navegador. Todo funciona 100% en cliente y guarda datos en **LocalStorage**.
+## Comunicación entre módulos
+- Todos importan `store` desde `modules/store.js`:
+  - `store.state` — snapshot del estado compartido
+  - `store.set({...})` — actualiza y notifica a todos
+  - `store.on(fn)` — suscripción (retorna `off()`)
+  - `store.push(collection, record)` — agrega y notifica
+  - `store.upsert(collection, record, ['rfc','id'])` — inserta o actualiza por claves
 
-## 🔒 Datos y privacidad
-La información queda guardada **solo en tu navegador** del dispositivo donde uses la app. Si cambias de equipo, usa **Respaldar** y luego **Restaurar**.
+Ejemplo: Selecciona un cliente en **Clientes** y se autoselecciona en **Ventas** (usa `selectedClienteId` en el store).
 
-## 🧩 Personalización
-- Cambia el título/branding en la etiqueta `<title>` y encabezado.
-- Las **bodegas** y **etapas** están definidas en el JS (constantes `WAREHOUSES` y `STAGES`).
-
-## 📤 Respaldo / Exportación
-- **CSV** de movimientos.
-- **JSON** completo de la base para migrar entre equipos.
-
-## 💡 Soporte
-Si quieres un dominio personalizado (por ejemplo `inventario.altosnorte.mx`), agrega un archivo `CNAME` en la raíz con tu dominio y apunta un CNAME DNS a `username.github.io`.
+¡Listo para extender con tus módulos reales!
