@@ -1,463 +1,688 @@
-// modules/inventario.js — FIX overlay + matriz consolidada por bodega/producto
-import { store } from './store.js';
+// modules/inventario.js — Inventario con Catálogo (solo lectura),
+// Alta de Stock, Movimiento entre bodegas, Resumen, Matriz e Historial.
 
+// ============================
+// Helpers de estado (shared / local)
+// ============================
+function _getState(shared){
+  if (shared?.state) return shared.state;
+  // fallback local
+  return {
+    productos:   JSON.parse(localStorage.getItem('productos')   || '[]'),
+    inventario:  JSON.parse(localStorage.getItem('inventario')  || '[]'),
+    movimientos: JSON.parse(localStorage.getItem('movimientos') || '[]'),
+    priceTiers: [
+      "Distribuidor","Centro de Consumo","Nuevo Distribuidor","Nuevo Centro de Consumo"
+    ],
+    warehouses: [
+      "Bodega en medio","Bodega chica","Bodega externa","Bodega casa","Espacio AN","Oficina"
+    ],
+    stages: ["Embotellado","Degollado","Producto terminado"]
+  };
+}
+function _setState(shared, patch){
+  if (shared?.set) { shared.set(patch); return; }
+  // fallback local
+  const cur = _getState();
+  const next = { ...cur, ...patch };
+  if ('productos'   in patch) localStorage.setItem('productos',   JSON.stringify(next.productos));
+  if ('inventario'  in patch) localStorage.setItem('inventario',  JSON.stringify(next.inventario));
+  if ('movimientos' in patch) localStorage.setItem('movimientos', JSON.stringify(next.movimientos));
+}
+
+const uid   = ()=> crypto.randomUUID?.() || Math.random().toString(36).slice(2,9);
+const money = (n)=> new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
+
+// ============================
+// CSS embebido (layout robusto)
+// ============================
+(function injectCSS(){
+  if (document.getElementById('inv-css')) return;
+  const s=document.createElement('style');
+  s.id='inv-css';
+  s.textContent = `
+    .panel{position:relative}
+    .panel + .panel{margin-top:16px}
+    .inv-grid{display:grid;gap:16px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field input,.field select{background:#0f141c;color:#fff;border:1px solid #2b3340;border-radius:8px;padding:8px}
+    .inline{display:flex;gap:8px;align-items:center}
+    .right{text-align:right}
+    .muted{color:#9aa4b2}
+    .pill{display:inline-block;padding:.2rem .5rem;border:1px solid #2b3340;border-radius:999px;background:#121a26;margin:2px 6px 2px 0}
+    input[type="number"]{background:#0f141c;color:#fff;border:1px solid #2b3340;border-radius:8px;padding:6px 8px}
+    button{border:1px solid #2b3340;background:#1a2230;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+    button.sm{padding:4px 8px;border-radius:6px}
+    button.ghost{background:#0f141c}
+    button.danger{background:#3a1a1a;border-color:#5a2a2a}
+    h3{margin:6px 0 10px}
+
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:8px 10px;border-bottom:1px solid var(--border,#2b3340);vertical-align:middle;white-space:nowrap}
+    .table th{position:sticky;top:0;background:#11161f;z-index:1}
+
+    /* Catálogo SIN límite de alto ni recortes */
+    .catalogo-wrap{
+      background:var(--panel,#11161f);
+      border:1px solid var(--border,#333);
+      border-radius:12px;
+      padding:12px;
+      overflow:visible;
+    }
+
+    /* Scroll propio sólo para bloques largos */
+    .table-wrap.tall{max-height:70vh;overflow:auto}
+    .table-wrap-x{overflow:auto}
+  `;
+  document.head.appendChild(s);
+})();
+
+// ============================
+// Normalizaciones
+// ============================
+function normalizeProduct(p){
+  return {
+    id: p.id || uid(),
+    name: p.name || p.nombre || '',
+    sku:  p.sku || '',
+    prices: p.prices || p.precios || {
+      "Distribuidor": 0,
+      "Centro de Consumo": 0,
+      "Nuevo Distribuidor": 0,
+      "Nuevo Centro de Consumo": 0
+    }
+  };
+}
+function normalizeInvRow(r){
+  return {
+    id: r.id || uid(),
+    productId: r.productId,
+    productName: r.productName || r.nombre || '',
+    sku: r.sku,
+    warehouse: r.warehouse || r.bodega,
+    stage: r.stage || r.etapa,
+    lot: r.lot || r.lote || '',
+    qty: Number(r.qty ?? r.cantidad) || 0
+  };
+}
+
+// ============================
+// Módulo principal
+// ============================
 export function mount(root, shared){
-  if(!Array.isArray(shared.state.inventario)) shared.set({ inventario: [] });
-  if(!Array.isArray(shared.state.movimientos)) shared.set({ movimientos: [] });
-  if(!Array.isArray(shared.state.productos))  shared.set({ productos: [] });
-  if(!Array.isArray(shared.state.warehouses)) shared.set({ warehouses: ["Bodega en medio","Bodega chica","Bodega externa","Bodega casa","Espacio AN","Oficina"] });
-  if(!Array.isArray(shared.state.stages))     shared.set({ stages: ["Embotellado","Degollado","Producto terminado"] });
-  const REQUIRED_TIERS = ["Distribuidor","Centro de Consumo","Nuevo Distribuidor","Nuevo Centro de Consumo"];
-  if(!Array.isArray(shared.state.priceTiers)){
-    shared.set({ priceTiers: REQUIRED_TIERS.slice() });
-  }else{
-    const merged = Array.from(new Set([...(shared.state.priceTiers||[]), ...REQUIRED_TIERS]));
-    if(merged.join('|') !== (shared.state.priceTiers||[]).join('|')) shared.set({ priceTiers: merged });
-  }
 
-  const WAREHOUSES = () => shared.state.warehouses;
-  const STAGES = () => shared.state.stages;
-  const TIERS = () => shared.state.priceTiers;
+  // ---------- UI base ----------
+  const el = document.createElement('div');
+  el.className = 'inv-grid';
+  el.innerHTML = `
+    <!-- ===== Catálogo ===== -->
+    <section class="panel">
+      <h3>Catálogo de Productos</h3>
 
-  const div = document.createElement('div');
-  div.className = 'panel active';
-  div.innerHTML = `
-    <style>
-      .panel + .panel { margin-top: 16px; }
-      .scroll.fix-bg { background: var(--panel-bg, #13161c); position: relative; z-index: 1; border-radius: 10px; }
-      .chips { display:flex; flex-wrap:wrap; gap:6px; }
-      .chip2 { padding:2px 8px; border-radius:999px; border:1px solid var(--border,#2a2f3a); font-size:12px; opacity:.9 }
-      .pricesCol { min-width: 260px; }
-      .catalogo-wrap { position: relative; z-index: 2; }
-    </style>
-    <div class="inline" style="justify-content:space-between; align-items:center">
-      <div><h2 style="margin:0">Inventario de Botellas</h2><div class="note">Flujo entre bodegas y etapas • Guarda en tu navegador</div></div>
-      <div class="inline">
-        <button id="btnExportCSV" class="secondary">Exportar CSV</button>
-        <button id="btnBackup" class="secondary">Respaldar</button>
-        <label class="secondary" style="cursor:pointer">Restaurar<input id="restoreFile" type="file" accept="application/json" style="display:none"></label>
+      <div class="grid2" style="margin-bottom:10px">
+        <div class="field">
+          <label class="muted">Nombre del producto</label>
+          <input id="pNombre" placeholder="Ej. Cabernet 750ml">
+        </div>
+        <div class="field">
+          <label class="muted">SKU</label>
+          <input id="pSKU" placeholder="Ej. CAB-750">
+        </div>
       </div>
-    </div>
 
-    <div class="grid3" style="margin-top:14px; gap:16px">
-      <section class="panel catalogo-wrap">
-        <h3>Catálogo de Productos</h3>
-        <div class="inline">
-          <div style="flex:1">
-            <label>Nombre del producto</label>
-            <input id="pName" type="text" placeholder="Ej. Pet-Nat Rosado 2024" />
-          </div>
-          <div style="width:180px">
-            <label>SKU / Código</label>
-            <input id="pSKU" type="text" placeholder="Ej. AN-PN24" />
-          </div>
+      <div class="grid2" style="margin-bottom:10px">
+        <div class="field">
+          <label class="muted">Distribuidor</label>
+          <input id="tDistribuidor" type="number" step="0.01" value="0">
         </div>
-
-        <div id="tierPrices" style="margin-top:8px"></div>
-        <div class="note">Precios por <strong>tier</strong>. Puedes editarlos exportando/importando el catálogo.</div>
-
-        <div class="inline" style="margin-top:10px">
-          <button id="addProduct">Agregar</button>
+        <div class="field">
+          <label class="muted">Centro de Consumo</label>
+          <input id="tConsumo" type="number" step="0.01" value="0">
         </div>
-
-        <div class="hr" style="height:1px;background:var(--border);margin:10px 0"></div>
-        <div class="inline" style="align-items:center; gap:8px">
-          <input id="productSearch" type="text" placeholder="Buscar…" style="flex:1" />
-          <span class="chip" id="productCount">0 productos</span>
-          <button id="exportCatalog" class="secondary">Exportar catálogo</button>
-          <label class="secondary" style="cursor:pointer">Importar catálogo<input id="importCatalog" type="file" accept="application/json" style="display:none"></label>
+        <div class="field">
+          <label class="muted">Nuevo Distribuidor</label>
+          <input id="tNuevoDist" type="number" step="0.01" value="0">
         </div>
-        <div class="scroll fix-bg" style="max-height:280px; margin-top:8px; padding:2px;">
-          <table id="productTable" style="width:100%">
-            <thead><tr><th style="width:35%">Producto</th><th style="width:12%">SKU</th><th class="pricesCol">(por tier)</th><th class="right" style="width:120px">Acciones</th></tr></thead>
-            <tbody></tbody>
-          </table>
+        <div class="field">
+          <label class="muted">Nuevo Centro de Consumo</label>
+          <input id="tNuevoCons" type="number" step="0.01" value="0">
         </div>
-      </section>
-
-      <section class="panel">
-        <h3>Alta de Stock (lotes)</h3>
-        <label>Producto</label>
-        <select id="sProduct"></select>
-        <div class="inline">
-          <div style="flex:1">
-            <label>Bodega</label>
-            <select id="sWarehouse"></select>
-          </div>
-          <div style="flex:1">
-            <label>Etapa</label>
-            <select id="sStage"></select>
-          </div>
-        </div>
-        <div class="inline">
-          <div style="flex:1">
-            <label>Cantidad (botellas)</label>
-            <input id="sQty" type="number" min="1" step="1" placeholder="Ej. 120" />
-          </div>
-          <div style="flex:1">
-            <label>Lote (opcional)</label>
-            <input id="sLot" type="text" placeholder="Ej. L2407-R1" />
-          </div>
-        </div>
-        <label>Notas (opcional)</label>
-        <input id="sNotes" type="text" placeholder="Ej. Transferencia inicial / conteo físico" />
-        <div class="inline" style="margin-top:6px">
-          <button id="addStock">Agregar stock</button>
-          <button id="recount" class="secondary">Recontar totales</button>
-        </div>
-      </section>
-
-      <section class="panel">
-        <h3>Movimiento</h3>
-        <label>Producto</label>
-        <select id="mProduct"></select>
-        <div class="inline">
-          <div style="flex:1">
-            <label>Desde bodega</label>
-            <select id="mFrom"></select>
-          </div>
-          <div style="flex:1">
-            <label>Hacia bodega</label>
-            <select id="mTo"></select>
-          </div>
-        </div>
-        <div class="inline">
-          <div style="flex:1">
-            <label>Cambiar etapa (opcional)</label>
-            <select id="mStage"><option value="">— Mantener —</option></select>
-          </div>
-          <div style="flex:1">
-            <label>Cantidad</label>
-            <input id="mQty" type="number" min="1" step="1" />
-          </div>
-        </div>
-        <label>Notas (opcional)</label>
-        <input id="mNotes" type="text" placeholder="Motivo / referencia" />
-        <div class="inline" style="margin-top:6px">
-          <button id="doMove">Mover</button>
-          <span class="note">Los movimientos quedan en el historial.</span>
-        </div>
-      </section>
-    </div>
-
-    <section class="panel" style="margin-top:18px">
-      <h3>Resumen por bodega y etapa</h3>
-      <div class="inline" style="justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div class="inline" style="gap:8px">
-          <span class="note">Filtrar</span>
-          <select id="fWarehouse"></select>
-          <select id="fStage"></select>
-          <input id="fText" type="text" placeholder="Producto/SKU/Lote…" style="min-width:240px" />
-        </div>
-        <button id="btnClearFilters" class="secondary">Limpiar filtros</button>
       </div>
-      <div class="scroll" style="max-height:360px">
-        <table id="stockTable">
+
+      <div class="inline" style="margin-bottom:10px">
+        <button id="addProducto">Agregar producto</button>
+      </div>
+
+      <div class="catalogo-wrap">
+        <table class="table" id="catalogoTable">
           <thead>
             <tr>
-              <th>Producto</th><th>SKU</th><th>Bodega</th><th>Etapa</th><th>Lote</th><th class="right">Cantidad</th><th class="right">Acciones</th>
+              <th>Producto</th>
+              <th>SKU</th>
+              <th>(por tier)</th>
+              <th class="right">Acciones</th>
             </tr>
           </thead>
-          <tbody></tbody>
+          <tbody id="catalogoBody"></tbody>
         </table>
       </div>
     </section>
 
-    <section class="panel" style="margin-top:16px">
-      <h3>Matriz por bodega y producto (consolidado)</h3>
-      <div class="note">Totales por bodega (filas) y producto (columnas). Suma todas las etapas.</div>
-      <div class="scroll" style="max-height:320px">
-        <table id="matrixTable"></table>
+    <!-- ===== Alta de Stock (lotes) ===== -->
+    <section class="panel">
+      <h3>Alta de Stock (lotes)</h3>
+      <div class="grid3" style="margin-bottom:10px">
+        <div class="field">
+          <label class="muted">Producto</label>
+          <select id="asProducto"></select>
+        </div>
+        <div class="field">
+          <label class="muted">Bodega</label>
+          <select id="asBodega"></select>
+        </div>
+        <div class="field">
+          <label class="muted">Etapa</label>
+          <select id="asEtapa"></select>
+        </div>
+      </div>
+      <div class="grid3" style="margin-bottom:10px">
+        <div class="field">
+          <label class="muted">Cantidad (botellas)</label>
+          <input id="asCantidad" type="number" step="1" min="0" placeholder="Ej. 120">
+        </div>
+        <div class="field">
+          <label class="muted">Lote (opcional)</label>
+          <input id="asLote" placeholder="Ej. L2407-R1">
+        </div>
+        <div class="field">
+          <label class="muted">Notas (opcional)</label>
+          <input id="asNotas" placeholder="Transferencia inicial / conteo físico">
+        </div>
+      </div>
+      <div class="inline">
+        <button id="asAgregar">Agregar stock</button>
       </div>
     </section>
 
-    <section class="panel" style="margin-top:16px">
-      <h3>Historial de movimientos</h3>
-      <div class="inline" style="justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div class="inline">
-          <span class="note">Rango</span>
-          <input id="hFrom" type="date" />
-          <input id="hTo" type="date" />
+    <!-- ===== Movimiento ===== -->
+    <section class="panel">
+      <h3>Movimiento</h3>
+      <div class="grid3" style="margin-bottom:10px">
+        <div class="field">
+          <label class="muted">Producto</label>
+          <select id="mvProducto"></select>
         </div>
-        <button id="btnClearDates" class="secondary">Limpiar rango</button>
+        <div class="field">
+          <label class="muted">Desde bodega</label>
+          <select id="mvDesde"></select>
+        </div>
+        <div class="field">
+          <label class="muted">Hacia bodega</label>
+          <select id="mvHacia"></select>
+        </div>
       </div>
-      <div class="scroll" style="max-height:320px">
-        <table id="histTable">
+      <div class="grid3" style="margin-bottom:10px">
+        <div class="field">
+          <label class="muted">Cambiar etapa (opcional)</label>
+          <select id="mvEtapa">
+            <option value="">— Mantener —</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="muted">Cantidad</label>
+          <input id="mvCantidad" type="number" step="1" min="0">
+        </div>
+        <div class="field">
+          <label class="muted">Notas (opcional)</label>
+          <input id="mvNotas" placeholder="Motivo / referencia">
+        </div>
+      </div>
+      <div class="inline">
+        <button id="mvMover">Mover</button>
+      </div>
+    </section>
+
+    <!-- ===== Resumen por bodega y etapa ===== -->
+    <section class="panel">
+      <h3>Resumen por bodega y etapa</h3>
+      <div class="table-wrap tall">
+        <table class="table" id="resumenTable">
           <thead>
             <tr>
-              <th>Fecha</th><th>Producto</th><th>Desde</th><th>Hacia</th><th>Etapa</th><th class="right">Cantidad</th><th>Notas</th>
+              <th>Producto</th>
+              <th>SKU</th>
+              <th>Bodega</th>
+              <th>Etapa</th>
+              <th>Lote</th>
+              <th class="right">Cantidad</th>
+              <th class="right">Acciones</th>
             </tr>
           </thead>
-          <tbody></tbody>
+          <tbody id="resumenBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== Matriz consolidada ===== -->
+    <section class="panel">
+      <h3>Matriz por bodega y producto (consolidado)</h3>
+      <div class="table-wrap-x">
+        <table class="table" id="matrixTable">
+          <thead id="matrixHead"></thead>
+          <tbody id="matrixBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== Historial de movimientos ===== -->
+    <section class="panel">
+      <h3>Historial</h3>
+      <div class="table-wrap tall">
+        <table class="table" id="historyTable">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Producto</th>
+              <th>Desde</th>
+              <th>Hacia</th>
+              <th>Etapa</th>
+              <th class="right">Cantidad</th>
+              <th>Notas</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
         </table>
       </div>
     </section>
   `;
-  root.appendChild(div);
+  root.innerHTML = '';
+  root.appendChild(el);
 
-  const $ = (sel) => div.querySelector(sel);
-  const fmt = (n) => new Intl.NumberFormat('es-MX',{maximumFractionDigits:2}).format(n);
+  const $ = (sel) => el.querySelector(sel);
+  const state = () => _getState(shared);
 
-  function productById(id){ return shared.state.productos.find(p=>p.id===id); }
-  function toast(msg){ alert(msg); }
+  // ============================
+  // Catálogo (solo lectura) + Alta de producto
+  // ============================
+  const TIERS = ["Distribuidor","Centro de Consumo","Nuevo Distribuidor","Nuevo Centro de Consumo"];
 
-  function renderTierInputs(){
-    const container = $('#tierPrices');
-    container.innerHTML = '';
-    for(const t of TIERS()){
-      const row = document.createElement('div');
-      row.className = 'inline';
-      row.innerHTML = `<div style="width:240px"><label>Precio — ${t}</label><input type="number" step="0.01" min="0" data-tier="${t}" placeholder="0.00"></div>`;
-      container.appendChild(row);
-    }
-  }
-  function pricesFromInputs(){
-    const map = {};
-    for(const t of TIERS()){
-      const el = $('#tierPrices').querySelector(`[data-tier="${t}"]`);
-      map[t] = Number(el?.value || 0);
-    }
-    return map;
-  }
-  function fillProductsSelect(sel, includeBlank=false){
-    sel.innerHTML = includeBlank ? '<option value=\"\"></option>' : '';
-    for(const p of shared.state.productos){
-      const opt = document.createElement('option');
-      opt.value = p.id; opt.textContent = p.name + (p.sku? (' — '+p.sku):'');
-      sel.appendChild(opt);
-    }
-  }
-  function fillSelectOptions(sel, arr, includeBlank=false){
-    sel.innerHTML = includeBlank ? '<option value=\"\"></option>' : '';
-    for(const v of arr){
-      const opt = document.createElement('option');
-      opt.value = v; opt.textContent = v;
-      sel.appendChild(opt);
-    }
-  }
-  function renderProducts(){
-    const tbody = $('#productTable tbody');
-    const q = ($('#productSearch').value||'').trim().toLowerCase();
-    tbody.innerHTML = '';
-    let count = 0;
-    for(const p of shared.state.productos){
-      const hit = [p.name,p.sku].join(' ').toLowerCase().includes(q);
-      if(!hit) continue;
-      count++;
+  function renderCatalogo(){
+    const tbody = $('#catalogoBody'); if(!tbody) return;
+    const prods = (state().productos || []).map(normalizeProduct);
+    tbody.innerHTML = prods.map(p=>{
       const prices = p.prices || {};
-      const chips = TIERS().map(t => `<span class="chip2">${t}: $${(prices[t]||0).toFixed(2)}</span>`).join('');
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${p.name}</td><td class="muted">${p.sku||''}</td><td><div class="chips">${chips}</div></td><td class="right"><button class="secondary" data-act="del" data-id="${p.id}">Eliminar</button></td>`;
-      tbody.appendChild(tr);
-    }
-    $('#productCount').textContent = `${count} producto${count!==1?'s':''}`;
-    tbody.onclick = (e)=>{
-      const btn = e.target.closest('button[data-act="del"]');
-      if(!btn) return;
-      const id = btn.getAttribute('data-id');
-      if(confirm('¿Eliminar producto? Se mantendrán los registros históricos.')){
-        shared.set({ productos: shared.state.productos.filter(p=>p.id!==id) });
-        renderAll();
-      }
+      const chips = TIERS.map(t=>{
+        const val = Number(prices[t] ?? 0);
+        return `<span class="pill"><span class="muted">${t}:</span> ${money(val)}</span>`;
+      }).join('');
+      return `
+        <tr>
+          <td>${p.name}</td>
+          <td>${p.sku}</td>
+          <td>${chips}</td>
+          <td class="right">
+            <button class="danger sm" data-del-prod="${p.id}">Eliminar</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Eliminar producto
+  $('#catalogoTable')?.addEventListener('click', (e)=>{
+    const del = e.target.closest('[data-del-prod]');
+    if(!del) return;
+    const id = del.getAttribute('data-del-prod');
+    const prods = (state().productos || []).filter(p=> (p.id||'') !== id);
+    _setState(shared, { productos: prods });
+    renderCatalogo(); refillSelects();
+  });
+
+  // Alta rápida producto
+  $('#addProducto')?.addEventListener('click', ()=>{
+    const nombre = $('#pNombre')?.value?.trim();
+    const sku    = $('#pSKU')?.value?.trim();
+    if(!nombre || !sku){ alert('Nombre y SKU son obligatorios'); return; }
+    const prices = {
+      "Distribuidor": Number($('#tDistribuidor').value || 0),
+      "Centro de Consumo": Number($('#tConsumo').value || 0),
+      "Nuevo Distribuidor": Number($('#tNuevoDist').value || 0),
+      "Nuevo Centro de Consumo": Number($('#tNuevoCons').value || 0),
     };
-    fillProductsSelect($('#sProduct'));
-    fillProductsSelect($('#mProduct'));
+    const prods = (state().productos || []).slice();
+    prods.push({ id: uid(), name: nombre, sku, prices });
+    _setState(shared, { productos: prods });
+    $('#pNombre').value=''; $('#pSKU').value='';
+    $('#tDistribuidor').value='0'; $('#tConsumo').value='0'; $('#tNuevoDist').value='0'; $('#tNuevoCons').value='0';
+    renderCatalogo(); refillSelects();
+  });
+
+  // ============================
+  // Alta de Stock (lotes)
+  // ============================
+  function upsertInvRow({product, warehouse, stage, lot, qty}){
+    const inv = (state().inventario || []).map(normalizeInvRow);
+    const idx = inv.findIndex(r =>
+      r.productId===product.id &&
+      r.warehouse===warehouse &&
+      r.stage===stage &&
+      String(r.lot||'')===String(lot||'')
+    );
+    if (idx >= 0){
+      inv[idx].qty += qty;
+    } else {
+      inv.push({
+        id: uid(),
+        productId: product.id,
+        productName: product.name,
+        sku: product.sku,
+        warehouse, stage, lot: lot||'', qty
+      });
+    }
+    _setState(shared, { inventario: inv });
   }
 
-  function addProduct(){
-    const name = $('#pName').value.trim();
-    if(!name) return toast('Nombre requerido');
-    const sku  = $('#pSKU').value.trim();
-    const prices = pricesFromInputs();
-    const prod = {id: crypto.randomUUID?.()||String(Date.now()), name, sku, prices};
-    shared.set({ productos: [...shared.state.productos, prod] });
-    $('#pName').value=''; $('#pSKU').value='';
-    renderTierInputs();
-    renderAll(); toast('Producto agregado con precios por tier');
+  $('#asAgregar')?.addEventListener('click', ()=>{
+    const prods = (state().productos || []).map(normalizeProduct);
+    const pid = $('#asProducto').value;
+    const product = prods.find(p=>p.id===pid);
+    const warehouse = $('#asBodega').value;
+    const stage     = $('#asEtapa').value;
+    const qty       = Number($('#asCantidad').value || 0);
+    const lot       = $('#asLote').value.trim();
+    const notes     = $('#asNotas').value.trim();
+    if(!product || !warehouse || !stage || qty<=0){
+      alert('Completa producto, bodega, etapa y cantidad.'); return;
+    }
+    upsertInvRow({product, warehouse, stage, lot, qty});
+    pushMovimiento({
+      ts: new Date().toISOString(),
+      productId: product.id, productName: product.name,
+      from: '(alta)', to: warehouse, stage, qty, notes
+    });
+    $('#asCantidad').value=''; $('#asLote').value=''; $('#asNotas').value='';
+    renderResumen(); renderMatriz(); renderHistory();
+  });
+
+  // ============================
+  // Movimiento entre bodegas (con cambio de etapa opcional)
+  // ============================
+  function totalDisponible(productId, warehouse){
+    return (state().inventario || [])
+      .filter(r=> (r.productId===productId) && (r.warehouse===(r.warehouse||warehouse)) && (r.warehouse===warehouse))
+      .reduce((a,c)=> a + Number(c.qty ?? 0), 0);
   }
 
-  function renderStock(){
-    const tbody = $('#stockTable tbody');
-    const wh = $('#fWarehouse').value;
-    const st = $('#fStage').value;
-    const txt = ($('#fText').value||'').trim().toLowerCase();
-    tbody.innerHTML = '';
-    const rows = [];
-    for(const s of shared.state.inventario){
-      const p = productById(s.productId) || {name:'(eliminado)', sku:''};
-      const key = [s.productId, s.warehouse||'', s.stage||'', s.lot||''].join('|');
-      let row = rows.find(r=>r.key===key);
-      if(!row){
-        row = { key, productId:s.productId, product:p, warehouse:s.warehouse||'', stage:s.stage||'', lot:s.lot||'', qty:0 };
-        rows.push(row);
+  function moverFIFO({product, fromWh, toWh, qty, newStage, notes}){
+    const inv = (state().inventario || []).map(normalizeInvRow);
+    // Filtrar filas origen por producto y bodega
+    const origen = inv
+      .filter(r => r.productId===product.id && r.warehouse===fromWh && r.qty>0)
+      // FIFO por lote → por string
+      .sort((a,b)=> String(a.lot ?? '').localeCompare(String(b.lot ?? ''), 'es', {numeric:true, sensitivity:'base'}));
+
+    let restante = qty;
+    if(!origen.length){ alert('No hay stock en la bodega origen.'); return false; }
+
+    for (const src of origen){
+      if (restante<=0) break;
+      const tomar = Math.min(src.qty, restante);
+      src.qty -= tomar;
+      restante -= tomar;
+
+      // Determinar etapa destino
+      const stageDst = newStage || src.stage;
+
+      // upsert destino (mismo lote)
+      const idx = inv.findIndex(r =>
+        r.productId===product.id &&
+        r.warehouse===toWh &&
+        r.stage===stageDst &&
+        String(r.lot||'')===String(src.lot||'')
+      );
+      if (idx>=0) inv[idx].qty += tomar;
+      else inv.push({
+        id: uid(),
+        productId: product.id,
+        productName: product.name,
+        sku: product.sku,
+        warehouse: toWh,
+        stage: stageDst,
+        lot: src.lot || '',
+        qty: tomar
+      });
+    }
+
+    if (restante>0){
+      alert('Stock insuficiente para mover esa cantidad.');
+      return false;
+    }
+
+    _setState(shared, { inventario: inv });
+    pushMovimiento({
+      ts: new Date().toISOString(),
+      productId: product.id, productName: product.name,
+      from: fromWh, to: toWh, stage: newStage || '(mismo)',
+      qty, notes
+    });
+    return true;
+  }
+
+  $('#mvMover')?.addEventListener('click', ()=>{
+    const prods = (state().productos || []).map(normalizeProduct);
+    const pid = $('#mvProducto').value;
+    const product = prods.find(p=>p.id===pid);
+    const fromWh  = $('#mvDesde').value;
+    const toWh    = $('#mvHacia').value;
+    const qty     = Number($('#mvCantidad').value || 0);
+    const newStage= $('#mvEtapa').value || '';
+    const notes   = $('#mvNotas').value.trim();
+
+    if(!product || !fromWh || !toWh || !qty){ alert('Completa producto, bodegas y cantidad.'); return; }
+    if (fromWh===toWh){ alert('Elige bodegas distintas.'); return; }
+
+    const ok = moverFIFO({product, fromWh, toWh, qty, newStage, notes});
+    if (ok){
+      $('#mvCantidad').value=''; $('#mvNotas').value='';
+      renderResumen(); renderMatriz(); renderHistory();
+    }
+  });
+
+  // ============================
+  // Resumen por bodega y etapa
+  // ============================
+  function commitInventario(next){
+    const clean = next.map(normalizeInvRow).filter(r=>r.qty>0);
+    _setState(shared, { inventario: clean });
+  }
+
+  function renderResumen(){
+    const tbody = $('#resumenBody'); if(!tbody) return;
+    const rows = (state().inventario || []).map(normalizeInvRow);
+
+    // Orden seguro por nombre/sku (evita localeCompare sobre undefined)
+    const key = (x)=> String(x?.productName ?? x?.sku ?? '').toLowerCase();
+    rows.sort((a,b)=> key(a).localeCompare(key(b), 'es', { numeric:true, sensitivity:'base' }));
+
+    tbody.innerHTML = rows.map(r=>`
+      <tr>
+        <td>${r.productName}</td>
+        <td>${r.sku}</td>
+        <td>${r.warehouse}</td>
+        <td>${r.stage}</td>
+        <td>${r.lot || ''}</td>
+        <td class="right">${r.qty}</td>
+        <td class="right">
+          <button class="sm ghost" data-ajustar="${r.id}">Ajustar / dividir</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // Ajustar / dividir desde resumen
+  $('#resumenTable')?.addEventListener('click',(e)=>{
+    const btn = e.target.closest('[data-ajustar]');
+    if(!btn) return;
+    const id = btn.getAttribute('data-ajustar');
+
+    const inv = (state().inventario || []).map(r=>({...r}));
+    const row = inv.find(r=>r.id===id); if(!row) return;
+
+    const modo = (prompt('Escribe A = Ajustar cantidad\nD = Dividir lote','A')||'').trim().toUpperCase();
+    if (modo==='A'){
+      const nueva = prompt(`Nueva cantidad para ${row.productName} (${row.sku})`, row.qty ?? 0);
+      if(nueva==null) return;
+      row.qty = Number(nueva)||0;
+      commitInventario(inv);
+      pushMovimiento({
+        ts: new Date().toISOString(),
+        productId: row.productId, productName: row.productName,
+        from: row.warehouse, to: '(ajuste)', stage: row.stage,
+        qty: row.qty, notes: 'Ajuste manual'
+      });
+    } else if (modo==='D'){
+      const cant = prompt('¿Cuánto mover a nueva fila?', '');
+      const n = Number(cant)||0; if(n<=0) return;
+      const cur = Number(row.qty)||0;
+      if(n>cur){ alert('No puedes mover más de lo que hay'); return; }
+      row.qty = cur - n;
+      const nuevo = { ...row, id: uid(), qty: n };
+      inv.push(nuevo);
+      commitInventario(inv);
+      pushMovimiento({
+        ts: new Date().toISOString(),
+        productId: row.productId, productName: row.productName,
+        from: row.warehouse, to: row.warehouse, stage: row.stage,
+        qty: n, notes: 'División de lote'
+      });
+    }
+    renderResumen(); renderMatriz(); renderHistory();
+  });
+
+  // ============================
+  // Matriz consolidada
+  // ============================
+  function renderMatriz(){
+    const head = $('#matrixHead'), body = $('#matrixBody');
+    if(!head || !body) return;
+
+    const inv = (state().inventario || []).map(normalizeInvRow);
+    const skus = [...new Set(inv.map(i=>i.sku))];
+    const bodegas = [...new Set(inv.map(i=>i.warehouse))];
+
+    head.innerHTML = `<tr><th>Bodega</th>${skus.map(s=>`<th>${s}</th>`).join('')}</tr>`;
+    body.innerHTML = bodegas.map(b=>{
+      const tds = skus.map(s=>{
+        const total = inv.filter(i=>i.warehouse===b && i.sku===s)
+                         .reduce((a,c)=>a+c.qty,0);
+        return `<td class="right">${total}</td>`;
+      }).join('');
+      return `<tr><td>${b}</td>${tds}</tr>`;
+    }).join('');
+  }
+
+  // ============================
+  // Historial de movimientos (seguro si faltan ts)
+  // ============================
+  function pushMovimiento(mv){
+    const arr = Array.isArray(state().movimientos) ? state().movimientos.slice() : [];
+    arr.push(mv);
+    _setState(shared, { movimientos: arr });
+  }
+
+  // Sanea movimientos sin ts (evita errores al ordenar)
+  (function normalizeMissingTs(){
+    const movs = state().movimientos || [];
+    if(!movs.length) return;
+    let changed=false;
+    const fixed = movs.map((m,i)=>{
+      if(!m?.ts){
+        changed=true;
+        return { ...m, ts: new Date(Date.now() - (movs.length-i)*1000).toISOString() };
       }
-      row.qty += s.qty;
-    }
-    const filtered = rows.filter(r=>{
-      if(wh && r.warehouse!==wh) return false;
-      if(st && r.stage!==st) return false;
-      const blob = [r.product.name, r.product.sku, r.lot].join(' ').toLowerCase();
-      if(txt && !blob.includes(txt)) return false;
-      return true;
-    }).sort((a,b)=> a.product.name.localeCompare(b.product.name));
-
-    for(const r of filtered){
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${r.product.name}</td><td class="muted">${r.product.sku||''}</td><td>${r.warehouse||'—'}</td><td>${r.stage||'—'}</td><td class="muted">${r.lot||''}</td><td class="right">${fmt(r.qty)}</td><td class="right"><button class="secondary" data-act="split" data-key="${r.key}">Ajustar / dividir</button></td>`;
-      tbody.appendChild(tr);
-    }
-  }
-
-  function renderMatrix(){
-    const tbl = $('#matrixTable');
-    const products = shared.state.productos.slice().sort((a,b)=> a.name.localeCompare(b.name));
-    const warehouses = WAREHOUSES();
-    let html = '<thead><tr><th>Bodega</th>';
-    for(const p of products){ html += `<th class="right" title="${p.sku}">${p.name}</th>`; }
-    html += '<th class="right">Total</th></tr></thead><tbody>';
-    for(const w of warehouses){
-      let rowTotal = 0;
-      html += `<tr><td>${w}</td>`;
-      for(const p of products){
-        const qty = shared.state.inventario
-          .filter(s=> s.warehouse===w && s.productId===p.id)
-          .reduce((a,b)=> a + (b.qty||0), 0);
-        rowTotal += qty;
-        html += `<td class="right">${fmt(qty)}</td>`;
-      }
-      html += `<td class="right"><strong>${fmt(rowTotal)}</strong></td></tr>`;
-    }
-    html += '</tbody>';
-    tbl.innerHTML = html;
-  }
-
-  function renderFilters(){
-    fillSelectOptions($('#fWarehouse'), [''].concat(WAREHOUSES()));
-    fillSelectOptions($('#fStage'), [''].concat(STAGES()));
-  }
-  function renderMoveSelectors(){
-    fillSelectOptions($('#mFrom'), WAREHOUSES(), true);
-    fillSelectOptions($('#mTo'), WAREHOUSES(), true);
-    const mStage = $('#mStage'); mStage.innerHTML = '<option value=\"\">— Mantener —</option>';
-    for(const s of STAGES()){ const o=document.createElement('option'); o.value=s; o.textContent=s; mStage.appendChild(o); }
-  }
-  function renderStockSelectors(){
-    fillProductsSelect($('#sProduct'));
-    fillSelectOptions($('#sWarehouse'), WAREHOUSES());
-    fillSelectOptions($('#sStage'), STAGES());
-  }
-
-  function addStock(){
-    const productId = $('#sProduct').value;
-    const warehouse = $('#sWarehouse').value;
-    const stage = $('#sStage').value;
-    const qty  = parseInt($('#sQty').value,10);
-    const lot  = $('#sLot').value.trim();
-    const notes= $('#sNotes').value.trim();
-    if(!productId) return toast('Selecciona un producto');
-    if(!warehouse || !stage) return toast('Selecciona bodega y etapa');
-    if(!(qty>0)) return toast('Cantidad inválida');
-    store.push('inventario',{id: crypto.randomUUID?.()||String(Date.now()), productId, warehouse, stage, qty, lot, notes});
-    store.push('movimientos',{ts:new Date().toISOString(), productId, from:'(alta)', to:warehouse, stage, qty, notes: notes||'Alta de stock'});
-    $('#sQty').value=''; $('#sLot').value=''; $('#sNotes').value='';
-    renderAll(); toast('Stock agregado');
-  }
-
-  function exportCSV(){
-    const rows = [['fecha','productoId','desde','hacia','etapa','cantidad','notas']];
-    for(const m of shared.state.movimientos){
-      rows.push([m.ts, m.productId, m.from||'', m.to||'', m.stage||'', m.qty, (m.notes||'').replace(/[\r\n]+/g,' ')]);
-    }
-    const csv = rows.map(r=> r.map(v=> `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
-    a.download = 'movimientos.csv'; a.click(); URL.revokeObjectURL(a.href);
-  }
-  function backupJSON(){
-    const payload = {
-      productos: shared.state.productos,
-      inventario: shared.state.inventario,
-      movimientos: shared.state.movimientos,
-      warehouses: shared.state.warehouses,
-      stages: shared.state.stages,
-      priceTiers: shared.state.priceTiers
-    };
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], {type:'application/json;charset=utf-8'}));
-    a.download = 'inventario_backup.json'; a.click(); URL.revokeObjectURL(a.href);
-  }
-  function restoreJSON(file){
-    const reader = new FileReader();
-    reader.onload = (e)=>{
-      try{
-        const obj = JSON.parse(e.target.result);
-        const patch = {
-          productos: obj.productos || shared.state.productos,
-          inventario: obj.inventario || shared.state.inventario,
-          movimientos: obj.movimientos || shared.state.movimientos,
-          warehouses: obj.warehouses || shared.state.warehouses,
-          stages: obj.stages || shared.state.stages,
-          priceTiers: obj.priceTiers || shared.state.priceTiers
-        };
-        shared.set(patch);
-        renderAll(); alert('Restaurado');
-      }catch(err){ alert('Archivo inválido: '+err.message); }
-    };
-    reader.readAsText(file);
-  }
+      return m;
+    });
+    if(changed) _setState(shared, { movimientos: fixed });
+  })();
 
   function renderHistory(){
-    const tbody = $('#histTable tbody');
-    const dFrom = $('#hFrom').value ? new Date($('#hFrom').value) : null;
-    const dTo   = $('#hTo').value ? new Date($('#hTo').value) : null;
-    tbody.innerHTML = '';
-    const rows = shared.state.movimientos.slice().sort((a,b)=> b.ts.localeCompare(a.ts));
-    for(const m of rows){
-      const dt = new Date(m.ts);
-      if(dFrom && dt < new Date(dFrom.getFullYear(), dFrom.getMonth(), dFrom.getDate())) continue;
-      if(dTo && dt > new Date(dTo.getFullYear(), dTo.getMonth(), dTo.getDate(), 23,59,59)) continue;
-      const p = productById(m.productId) || {name:'(eliminado)'};
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${dt.toLocaleString()}</td><td>${p.name}</td><td>${m.from||'—'}</td><td>${m.to||'—'}</td><td>${m.stage||'—'}</td><td class="right">${fmt(m.qty)}</td><td class="muted">${m.notes||''}</td>`;
-      tbody.appendChild(tr);
+    const tbody = $('#historyBody'); if(!tbody) return;
+
+    const rows = (state().movimientos || [])
+      .slice()
+      .sort((a,b)=>{
+        const da = a?.ts ? Date.parse(a.ts) : NaN;
+        const db = b?.ts ? Date.parse(b.ts) : NaN;
+        if(!Number.isNaN(da) && !Number.isNaN(db)) return db - da; // DESC
+        const A = String(a?.ts ?? ''), B = String(b?.ts ?? '');
+        return B.localeCompare(A,'es',{numeric:true,sensitivity:'base'});
+      });
+
+    tbody.innerHTML = rows.map(m=>`
+      <tr>
+        <td>${m.ts ? new Date(m.ts).toLocaleString('es-MX') : ''}</td>
+        <td>${m.productName || ''}</td>
+        <td>${m.from || ''}</td>
+        <td>${m.to || ''}</td>
+        <td>${m.stage || ''}</td>
+        <td class="right">${m.qty ?? ''}</td>
+        <td>${m.notes || ''}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ============================
+  // Selects
+  // ============================
+  function refillSelects(){
+    const prods = (state().productos || []).map(normalizeProduct);
+    const w     = state().warehouses || [];
+    const st    = state().stages || [];
+
+    const selProdIds = ['asProducto','mvProducto'];
+    selProdIds.forEach(id=>{
+      const s = $('#'+id); if(!s) return;
+      const cur = s.value;
+      s.innerHTML = prods.map(p=>`<option value="${p.id}">${p.sku} — ${p.name}</option>`).join('');
+      if (cur) s.value = cur;
+    });
+
+    const selBodegas = ['asBodega','mvDesde','mvHacia'];
+    selBodegas.forEach(id=>{
+      const s = $('#'+id); if(!s) return;
+      const cur = s.value;
+      s.innerHTML = w.map(x=>`<option value="${x}">${x}</option>`).join('');
+      if (cur) s.value = cur;
+    });
+
+    const asEtapa = $('#asEtapa');
+    if (asEtapa) {
+      const cur = asEtapa.value;
+      asEtapa.innerHTML = st.map(x=>`<option value="${x}">${x}</option>`).join('');
+      if (cur) asEtapa.value = cur;
+    }
+
+    const mvEtapa = $('#mvEtapa');
+    if (mvEtapa) {
+      const cur = mvEtapa.value;
+      mvEtapa.innerHTML = `<option value="">— Mantener —</option>` + st.map(x=>`<option value="${x}">${x}</option>`).join('');
+      if (cur) mvEtapa.value = cur;
     }
   }
 
-  function renderAll(){
-    renderTierInputs();
-    renderProducts();
-    renderStockSelectors();
-    renderMoveSelectors();
-    renderFilters();
-    renderStock();
-    renderMatrix();
-    renderHistory();
-  }
+  // ============================
+  // Primer render
+  // ============================
+  renderCatalogo();
+  refillSelects();
+  renderResumen();
+  renderMatriz();
+  renderHistory();
 
-  // Bind events
-  $('#addProduct').onclick = addProduct;
-  $('#productSearch').oninput = renderProducts;
-  $('#addStock').onclick = addStock;
-  $('#recount').onclick = ()=>{ renderStock(); renderMatrix(); alert('Totales recalculados'); };
-  $('#fWarehouse').onchange = ()=>{ renderStock(); };
-  $('#fStage').onchange = ()=>{ renderStock(); };
-  $('#fText').oninput = ()=>{ renderStock(); };
-  $('#btnClearFilters').onclick = ()=>{ $('#fWarehouse').value=''; $('#fStage').value=''; $('#fText').value=''; renderStock(); };
-  $('#btnClearDates').onclick = ()=>{ $('#hFrom').value=''; $('#hTo').value=''; renderHistory(); };
-  $('#btnExportCSV').onclick = exportCSV;
-  $('#btnBackup').onclick = backupJSON;
-  $('#restoreFile').onchange = (e)=> e.target.files[0] && restoreJSON(e.target.files[0]);
-
-  const off = shared.on((_snap)=>{ renderAll(); });
-
-  if(!shared.state.productos.length){
-    shared.set({ productos: [
-      {id:'p1', name:'Pet-Nat Rosado 2024', sku:'AN-PN24', prices:{'Distribuidor':100,'Centro de Consumo':130,'Nuevo Distribuidor':95,'Nuevo Centro de Consumo':125}},
-      {id:'p2', name:'Espumoso Tradicional 2023', sku:'AN-ET23', prices:{'Distribuidor':120,'Centro de Consumo':160,'Nuevo Distribuidor':118,'Nuevo Centro de Consumo':158}},
-      {id:'p3', name:'Tinto Natural 2022', sku:'AN-TN22', prices:{'Distribuidor':90,'Centro de Consumo':120,'Nuevo Distribuidor':88,'Nuevo Centro de Consumo':118}},
-    ]});
-  }
-
-  renderAll();
-  return { unmount(){ off(); } };
+  // ============================
+  // API opcional
+  // ============================
+  return { unmount(){} };
 }
