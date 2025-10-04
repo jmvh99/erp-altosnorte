@@ -8,7 +8,6 @@ const COMPANY = {
   email:  "contacto@altosnortevinicola.mx",
   address:"Porfirio Díaz 43 PA Col. Del Valle C.P. 03100 Benito Juárez, CDMX",
   website:"www.altosnortevinicola.mx",
-  origin: "Jalisco - México",
   logo:   "assets/logo-anv.jpg"            // ⚠️ coloca este archivo en esa ruta
 };
 
