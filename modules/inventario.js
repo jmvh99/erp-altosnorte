@@ -1,64 +1,6 @@
 // modules/inventario.js — FIX overlay + matriz consolidada por bodega/producto
 import { store } from './store.js';
 
-/* ===== Fix layout Inventario (sin app.css) ===== */
-(function injectInventoryFixCSS(){
-  if (document.getElementById('inv-fix-css')) return;
-  const style = document.createElement('style');
-  style.id = 'inv-fix-css';
-  style.textContent = `
-    .panel { position: relative; }
-    .panel + .panel { margin-top: 16px; }
-    .inv-grid { display: grid; gap: 16px; }
-
-    /* Catálogo */
-    .catalogo-wrap {
-      background: var(--panel, #11161f);
-      border: 1px solid var(--border, #333);
-      border-radius: 12px;
-      padding: 12px;
-      contain: layout paint;
-    }
-
-    /* Scroll para tablas */
-    .table-wrap {
-      border: 1px solid var(--border, #333);
-      border-radius: 10px;
-      overflow: auto;
-      background: transparent;
-      max-height: 400px;
-      margin-bottom: 10px;
-    }
-
-    .table-wrap.tall { max-height: 520px; }
-    .table-wrap-x { overflow-x: auto; }
-
-    .table { width: 100%; border-collapse: collapse; }
-    .table th, .table td {
-      padding: 8px 10px;
-      border-bottom: 1px solid var(--border, #333);
-      vertical-align: middle;
-      white-space: nowrap;
-    }
-    .table th {
-      position: sticky;
-      top: 0;
-      background: #11161f;
-      z-index: 1;
-    }
-  `;
-  document.head.appendChild(style);
-})();
-
-function wrapTable(el, className){
-  if (!el || el.closest('.table-wrap')) return;
-  const wrap = document.createElement('div');
-  wrap.className = className;
-  el.parentNode.insertBefore(wrap, el);
-  wrap.appendChild(el);
-}
-
-
 export function mount(root, shared){
   if(!Array.isArray(shared.state.inventario)) shared.set({ inventario: [] });
   if(!Array.isArray(shared.state.movimientos)) shared.set({ movimientos: [] });
@@ -267,25 +209,6 @@ export function mount(root, shared){
       row.className = 'inline';
       row.innerHTML = `<div style="width:240px"><label>Precio — ${t}</label><input type="number" step="0.01" min="0" data-tier="${t}" placeholder="0.00"></div>`;
       container.appendChild(row);
-    }
-
-    // Arregla layout para evitar encimados
-    wrapTable(root.querySelector('#catalogoTable'), 'table-wrap');
-    wrapTable(root.querySelector('#resumenTable'), 'table-wrap tall');
-    wrapTable(root.querySelector('#matrixTable'), 'table-wrap-x');
-
-// Además mete todo el bloque de catálogo en un contenedor bonito
-    const catPanel = root.querySelector('#catalogoTable')?.closest('.panel');
-    if (catPanel && !catPanel.querySelector('.catalogo-wrap')) {
-
-      const wrap = document.createElement('div');
-      wrap.className = 'catalogo-wrap';
-      const children = Array.from(catPanel.children);
-      for (const node of children) {
-        if (node.tagName === 'H3') continue;
-        wrap.appendChild(node);
-      }
-      catPanel.appendChild(wrap);
     }
   }
   function pricesFromInputs(){
