@@ -11,7 +11,7 @@ import { store } from './store.js';
     .panel + .panel { margin-top: 16px; }
     .inv-grid { display: grid; gap: 16px; }
 
-    /* Catálogo */
+    /* Catálogo: no limitar altura, que crezca normal */
     .catalogo-wrap {
       background: var(--panel, #11161f);
       border: 1px solid var(--border, #333);
@@ -19,20 +19,6 @@ import { store } from './store.js';
       padding: 12px;
       contain: layout paint;
     }
-
-    /* Scroll para tablas */
-    .table-wrap {
-      border: 1px solid var(--border, #333);
-      border-radius: 10px;
-      overflow: auto;
-      background: transparent;
-      max-height: 400px;
-      margin-bottom: 10px;
-    }
-
-    .table-wrap.tall { max-height: 520px; }
-    .table-wrap-x { overflow-x: auto; }
-
     .table { width: 100%; border-collapse: collapse; }
     .table th, .table td {
       padding: 8px 10px;
@@ -40,15 +26,19 @@ import { store } from './store.js';
       vertical-align: middle;
       white-space: nowrap;
     }
-    .table th {
-      position: sticky;
-      top: 0;
-      background: #11161f;
-      z-index: 1;
-    }
+    .table th { position: sticky; top: 0; background: #11161f; z-index: 1; }
+
+    /* Scroll sólo para las secciones largas: Resumen y Matriz */
+    .table-wrap { border: 1px solid var(--border, #333); border-radius: 10px; overflow: auto; background: transparent; }
+    .table-wrap.tall { max-height: 70vh; }         /* Resumen alto con scroll */
+    .table-wrap-x    { overflow: auto; }           /* Matriz con scroll horizontal si se necesita */
+
+    /* EXCEPCIÓN: catálogo SIN límite de altura */
+    .table-wrap.catalogo { max-height: none; overflow: visible; border: none; }
   `;
   document.head.appendChild(style);
 })();
+
 
 function wrapTable(el, className){
   if (!el || el.closest('.table-wrap')) return;
@@ -269,10 +259,15 @@ export function mount(root, shared){
       container.appendChild(row);
     }
 
-    // Arregla layout para evitar encimados
-    wrapTable(root.querySelector('#catalogoTable'), 'table-wrap');
+    // Catálogo sin límite (no se corta)
+    wrapTable(root.querySelector('#catalogoTable'), 'table-wrap catalogo');
+    
+    // Resumen con scroll vertical
     wrapTable(root.querySelector('#resumenTable'), 'table-wrap tall');
+    
+    // Matriz con scroll (horizontal si hay muchas columnas)
     wrapTable(root.querySelector('#matrixTable'), 'table-wrap-x');
+
 
 // Además mete todo el bloque de catálogo en un contenedor bonito
     const catPanel = root.querySelector('#catalogoTable')?.closest('.panel');
