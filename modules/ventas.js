@@ -6,9 +6,9 @@ const COMPANY = {
   rfc:    "VSJ200424PH8",
   phone:  "449-890-9949",
   email:  "contacto@altosnortevinicola.mx",
-  address:"AVENIDA MEXICO 99 COL. HIPÓDROMO CONDESA C.P. 06170 CUAUHTÉMOC, CIUDAD DE MÉXICO",
-  website:"WWW.ALTOSNORTEVINICOLA.MX",
-  origin: "JALISCO - MÉXICO",
+  address:"Porfirio Díaz 43 PA Col. Del Valle C.P. 03100 Benito Juárez, CDMX",
+  website:"www.altosnortevinicola.mx",
+  origin: "Jalisco - México",
   logo:   "assets/logo-anv.jpg"            // ⚠️ coloca este archivo en esa ruta
 };
 
