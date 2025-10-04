@@ -1,5 +1,6 @@
 // modules/inventario.js — Inventario con Catálogo (solo lectura),
-// Alta de Stock, Movimiento entre bodegas, Resumen, Matriz e Historial.
+// Alta de Stock, Movimiento, Resumen, Matriz, Historial
+// + Botones: Exportar CSV, Respaldar, Restaurar
 
 // ============================
 // Helpers de estado (shared / local)
@@ -32,6 +33,22 @@ function _setState(shared, patch){
 
 const uid   = ()=> crypto.randomUUID?.() || Math.random().toString(36).slice(2,9);
 const money = (n)=> new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n||0));
+
+// ============================
+// Utils export/backup
+// ============================
+function downloadBlob(name, blob){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+}
+function toCSV(rows, headers){
+  const esc = (v)=> `"${String(v ?? '').replace(/"/g,'""')}"`;
+  const head = headers.map(h=>esc(h.label)).join(',');
+  const body = rows.map(r => headers.map(h => esc(h.get(r))).join(',')).join('\n');
+  return head + '\n' + body + '\n';
+}
 
 // ============================
 // CSS embebido (layout robusto)
@@ -75,6 +92,10 @@ const money = (n)=> new Intl.NumberFormat('es-MX',{style:'currency',currency:'MX
     /* Scroll propio sólo para bloques largos */
     .table-wrap.tall{max-height:70vh;overflow:auto}
     .table-wrap-x{overflow:auto}
+
+    /* Toolbar superior */
+    .toolbar{display:flex;gap:8px;justify-content:flex-end}
+    .toolbar input[type="file"]{display:none}
   `;
   document.head.appendChild(s);
 })();
@@ -117,6 +138,16 @@ export function mount(root, shared){
   const el = document.createElement('div');
   el.className = 'inv-grid';
   el.innerHTML = `
+    <!-- ===== Toolbar global ===== -->
+    <section class="panel">
+      <div class="toolbar">
+        <button id="btnExportCsv">Exportar CSV</button>
+        <button id="btnBackup">Respaldar</button>
+        <label for="fileRestore" class="button"><button id="btnRestore">Restaurar</button></label>
+        <input id="fileRestore" type="file" accept=".json,application/json">
+      </div>
+    </section>
+
     <!-- ===== Catálogo ===== -->
     <section class="panel">
       <h3>Catálogo de Productos</h3>
@@ -244,7 +275,7 @@ export function mount(root, shared){
       </div>
     </section>
 
-    <!-- ===== Resumen por bodega y etapa ===== -->
+    <!-- ===== Resumen ===== -->
     <section class="panel">
       <h3>Resumen por bodega y etapa</h3>
       <div class="table-wrap tall">
@@ -276,7 +307,7 @@ export function mount(root, shared){
       </div>
     </section>
 
-    <!-- ===== Historial de movimientos ===== -->
+    <!-- ===== Historial ===== -->
     <section class="panel">
       <h3>Historial</h3>
       <div class="table-wrap tall">
@@ -409,18 +440,10 @@ export function mount(root, shared){
   // ============================
   // Movimiento entre bodegas (con cambio de etapa opcional)
   // ============================
-  function totalDisponible(productId, warehouse){
-    return (state().inventario || [])
-      .filter(r=> (r.productId===productId) && (r.warehouse===(r.warehouse||warehouse)) && (r.warehouse===warehouse))
-      .reduce((a,c)=> a + Number(c.qty ?? 0), 0);
-  }
-
   function moverFIFO({product, fromWh, toWh, qty, newStage, notes}){
     const inv = (state().inventario || []).map(normalizeInvRow);
-    // Filtrar filas origen por producto y bodega
     const origen = inv
       .filter(r => r.productId===product.id && r.warehouse===fromWh && r.qty>0)
-      // FIFO por lote → por string
       .sort((a,b)=> String(a.lot ?? '').localeCompare(String(b.lot ?? ''), 'es', {numeric:true, sensitivity:'base'}));
 
     let restante = qty;
@@ -432,10 +455,8 @@ export function mount(root, shared){
       src.qty -= tomar;
       restante -= tomar;
 
-      // Determinar etapa destino
       const stageDst = newStage || src.stage;
 
-      // upsert destino (mismo lote)
       const idx = inv.findIndex(r =>
         r.productId===product.id &&
         r.warehouse===toWh &&
@@ -502,7 +523,6 @@ export function mount(root, shared){
     const tbody = $('#resumenBody'); if(!tbody) return;
     const rows = (state().inventario || []).map(normalizeInvRow);
 
-    // Orden seguro por nombre/sku (evita localeCompare sobre undefined)
     const key = (x)=> String(x?.productName ?? x?.sku ?? '').toLowerCase();
     rows.sort((a,b)=> key(a).localeCompare(key(b), 'es', { numeric:true, sensitivity:'base' }));
 
@@ -521,7 +541,6 @@ export function mount(root, shared){
     `).join('');
   }
 
-  // Ajustar / dividir desde resumen
   $('#resumenTable')?.addEventListener('click',(e)=>{
     const btn = e.target.closest('[data-ajustar]');
     if(!btn) return;
@@ -592,7 +611,6 @@ export function mount(root, shared){
     _setState(shared, { movimientos: arr });
   }
 
-  // Sanea movimientos sin ts (evita errores al ordenar)
   (function normalizeMissingTs(){
     const movs = state().movimientos || [];
     if(!movs.length) return;
@@ -632,6 +650,59 @@ export function mount(root, shared){
       </tr>
     `).join('');
   }
+
+  // ============================
+  // Toolbar: Exportar / Respaldar / Restaurar
+  // ============================
+  $('#btnExportCsv')?.addEventListener('click', ()=>{
+    const inv = (state().inventario || []).map(normalizeInvRow);
+    const headers = [
+      {label:'Producto',  get:r=>r.productName},
+      {label:'SKU',       get:r=>r.sku},
+      {label:'Bodega',    get:r=>r.warehouse},
+      {label:'Etapa',     get:r=>r.stage},
+      {label:'Lote',      get:r=>r.lot},
+      {label:'Cantidad',  get:r=>r.qty},
+    ];
+    const csv = toCSV(inv, headers);
+    downloadBlob(`inventario_${new Date().toISOString().slice(0,10)}.csv`, new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  });
+
+  $('#btnBackup')?.addEventListener('click', ()=>{
+    const dump = {
+      version: 1,
+      date: new Date().toISOString(),
+      productos:   (state().productos   || []),
+      inventario:  (state().inventario  || []),
+      movimientos: (state().movimientos || []),
+    };
+    downloadBlob(`backup_inventario_${new Date().toISOString().replace(/[:.]/g,'-')}.json`,
+      new Blob([JSON.stringify(dump,null,2)],{type:'application/json'}));
+  });
+
+  $('#fileRestore')?.addEventListener('change', (e)=>{
+    const f = e.target.files?.[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const parsed = JSON.parse(reader.result);
+        const productos   = Array.isArray(parsed.productos)   ? parsed.productos   : [];
+        const inventario  = Array.isArray(parsed.inventario)  ? parsed.inventario  : [];
+        const movimientos = Array.isArray(parsed.movimientos) ? parsed.movimientos : [];
+        _setState(shared, { productos, inventario, movimientos });
+        // repintar
+        renderCatalogo(); refillSelects(); renderResumen(); renderMatriz(); renderHistory();
+        alert('Restaurado correctamente.');
+      }catch(err){
+        console.error(err);
+        alert('Archivo inválido.');
+      } finally {
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(f);
+  });
 
   // ============================
   // Selects
